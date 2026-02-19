@@ -1,0 +1,12 @@
+UTC_TIMESTAMP=2026-02-19T12:54:11Z
+CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium
+GIT_BASE=5dc60bd
+
+GIT_LOG_ONELINE_20:
+5dc60bd [openspec] task-1.1 R1 bookkeeping: finalize RUN#2 DONE evidence + runs.log
+3f09452 首次提交
+40d1306 首次提交
+
+OBSERVATIONS:
+- feature_list.json contains ref=R2 for task 1.2 (passes=false).
+- Prior run#2 completed task 1.1; current HEAD is openspec bookkeeping commit.

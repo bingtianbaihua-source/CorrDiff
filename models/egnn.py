@@ -131,3 +131,60 @@ class EGNN(nn.Module):
         if return_all:
             outputs.update({'all_x': all_x, 'all_h': all_h})
         return outputs
+
+
+class EGNNGraphEncoder(nn.Module):
+    """
+    Lightweight graph-level encoder built on top of EGNN.
+
+    This wrapper is intentionally minimal so downstream modules (e.g. disentangled
+    VAE heads) can obtain a graph embedding via scatter pooling.
+    """
+
+    def __init__(
+        self,
+        *,
+        node_feat_dim: int,
+        hidden_dim: int,
+        num_layers: int,
+        edge_feat_dim: int,
+        num_r_gaussian: int,
+        k: int = 32,
+        cutoff: float = 10.0,
+        cutoff_mode: str = "knn",
+        update_x: bool = False,
+        act_fn: str = "silu",
+        norm: bool = False,
+        pool: str = "sum",
+    ):
+        super().__init__()
+        if pool not in ("sum", "mean"):
+            raise ValueError(f"pool must be 'sum' or 'mean', got: {pool}")
+        self.pool = pool
+        self.node_emb = nn.Linear(node_feat_dim, hidden_dim)
+        self.egnn = EGNN(
+            num_layers=num_layers,
+            hidden_dim=hidden_dim,
+            edge_feat_dim=edge_feat_dim,
+            num_r_gaussian=num_r_gaussian,
+            k=k,
+            cutoff=cutoff,
+            cutoff_mode=cutoff_mode,
+            update_x=update_x,
+            act_fn=act_fn,
+            norm=norm,
+        )
+
+    def forward(self, node_feat, pos, mask_ligand, batch, *, return_node=False, fix_x=True):
+        h0 = self.node_emb(node_feat)
+        out = self.egnn(h0, pos, mask_ligand, batch, return_all=False, fix_x=fix_x)
+        if self.pool == "sum":
+            graph_h = scatter_sum(out["h"], batch, dim=0)
+        else:
+            graph_h = scatter_sum(out["h"], batch, dim=0) / (
+                scatter_sum(torch.ones_like(batch, dtype=out["h"].dtype), batch, dim=0).clamp_min(1.0).unsqueeze(-1)
+            )
+        outputs = {"graph_h": graph_h, "pos": out["x"]}
+        if return_node:
+            outputs["node_h"] = out["h"]
+        return outputs

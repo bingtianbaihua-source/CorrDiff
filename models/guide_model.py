@@ -516,3 +516,219 @@ class DockGuideNet3D(nn.Module):
 def extract(coef, t, batch):
     out = coef[t][batch]
     return out.unsqueeze(-1)
+
+
+def _cfg_get(cfg, key, default=None):
+    if cfg is None:
+        return default
+    if isinstance(cfg, dict):
+        return cfg.get(key, default)
+    if hasattr(cfg, "get"):
+        try:
+            return cfg.get(key, default)
+        except TypeError:
+            pass
+    return getattr(cfg, key, default)
+
+
+def _reparameterize(mu, logvar):
+    std = torch.exp(0.5 * logvar)
+    eps = torch.randn_like(std)
+    return mu + eps * std
+
+
+def _kl_std_normal(mu, logvar):
+    # KL(q(z|x) || N(0, I)) for diagonal Gaussians; returns (batch,)
+    return 0.5 * (torch.exp(logvar) + mu.pow(2) - 1.0 - logvar).sum(dim=-1)
+
+
+class DisentangledVAE(nn.Module):
+    """
+    Disentangled VAE encoder producing:
+      - z_shared: shared latent (per-graph)
+      - z_pi: property-specific latents (per-graph, per-property)
+
+    Losses returned are lightweight, batch-statistics-based proxies:
+      - recon_loss: MSE reconstruction + KL to N(0, I)
+      - tc_loss: off-diagonal covariance penalty on concatenated latents
+      - mi_loss: cross-covariance penalty between z_shared and each z_pi
+    """
+
+    def __init__(self, config, protein_atom_feature_dim: int, ligand_atom_feature_dim: int):
+        super().__init__()
+        self.config = config
+
+        hidden_dim = int(_cfg_get(config, "hidden_dim", 128))
+        self.hidden_dim = hidden_dim
+
+        self.z_shared_dim = int(_cfg_get(config, "z_shared_dim", 32))
+        self.z_pi_dim = int(_cfg_get(config, "z_pi_dim", 16))
+
+        property_names = _cfg_get(config, "property_names", None)
+        if property_names is None:
+            num_properties = int(_cfg_get(config, "num_properties", 10))
+            property_names = [f"p{i}" for i in range(num_properties)]
+        self.property_names = list(property_names)
+
+        self.beta_kl = float(_cfg_get(config, "beta_kl", 1.0))
+        self.tc_weight = float(_cfg_get(config, "tc_weight", 1.0))
+        self.mi_weight = float(_cfg_get(config, "mi_weight", 1.0))
+
+        self.protein_atom_emb = nn.Linear(protein_atom_feature_dim, hidden_dim)
+        self.ligand_atom_emb = nn.Linear(ligand_atom_feature_dim, hidden_dim)
+
+        # EGNN encoder (default to position-fixed update)
+        num_layers = int(_cfg_get(config, "num_layers", 4))
+        edge_feat_dim = int(_cfg_get(config, "edge_feat_dim", 4))
+        num_r_gaussian = int(_cfg_get(config, "num_r_gaussian", 20))
+        k = int(_cfg_get(config, "knn", 32))
+        r_max = float(_cfg_get(config, "r_max", 10.0))
+        cutoff_mode = _cfg_get(config, "cutoff_mode", "knn")
+        act_fn = _cfg_get(config, "act_fn", "silu")
+        norm = bool(_cfg_get(config, "norm", False))
+        update_x = bool(_cfg_get(config, "update_x", False))
+
+        self.encoder_gnn = EGNN(
+            num_layers=num_layers,
+            hidden_dim=hidden_dim,
+            edge_feat_dim=edge_feat_dim,
+            num_r_gaussian=num_r_gaussian,
+            k=k,
+            cutoff=r_max,
+            cutoff_mode=cutoff_mode,
+            update_x=update_x,
+            act_fn=act_fn,
+            norm=norm,
+        )
+
+        def _make_head(z_dim: int):
+            return nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.SiLU(),
+                nn.Linear(hidden_dim, 2 * z_dim),
+            )
+
+        self.shared_head = _make_head(self.z_shared_dim)
+        self.pi_heads = nn.ModuleDict({name: _make_head(self.z_pi_dim) for name in self.property_names})
+
+        total_z_dim = self.z_shared_dim + len(self.property_names) * self.z_pi_dim
+        self.decoder = nn.Sequential(
+            nn.Linear(total_z_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+
+    def encode(self, protein_pos, protein_atom_feature, ligand_pos, ligand_atom_feature, batch_protein, batch_ligand):
+        h_protein = self.protein_atom_emb(protein_atom_feature.float())
+        h_ligand = self.ligand_atom_emb(ligand_atom_feature.float())
+        h_all, pos_all, batch_all, mask_ligand = compose_context(
+            h_protein=h_protein,
+            h_ligand=h_ligand,
+            pos_protein=protein_pos,
+            pos_ligand=ligand_pos,
+            batch_protein=batch_protein,
+            batch_ligand=batch_ligand,
+        )
+
+        gnn_out = self.encoder_gnn(h_all, pos_all, mask_ligand, batch_all, return_all=False, fix_x=True)
+        graph_h = scatter_mean(gnn_out["h"], index=batch_all, dim=0)
+
+        shared_stats = self.shared_head(graph_h)
+        shared_mu, shared_logvar = torch.split(shared_stats, self.z_shared_dim, dim=-1)
+        z_shared = _reparameterize(shared_mu, shared_logvar)
+
+        z_pi = {}
+        z_pi_mu = {}
+        z_pi_logvar = {}
+        for name, head in self.pi_heads.items():
+            stats = head(graph_h)
+            mu, logvar = torch.split(stats, self.z_pi_dim, dim=-1)
+            z_pi_mu[name] = mu
+            z_pi_logvar[name] = logvar
+            z_pi[name] = _reparameterize(mu, logvar)
+
+        return {
+            "graph_h": graph_h,
+            "z_shared": z_shared,
+            "z_shared_mu": shared_mu,
+            "z_shared_logvar": shared_logvar,
+            "z_pi": z_pi,
+            "z_pi_mu": z_pi_mu,
+            "z_pi_logvar": z_pi_logvar,
+        }
+
+    @staticmethod
+    def _covariance_penalties(z_shared, z_pi_dict):
+        batch_size = z_shared.shape[0]
+        if batch_size < 2:
+            zero = z_shared.new_zeros(())
+            return zero, zero
+
+        pi_list = [z_pi_dict[k] for k in sorted(z_pi_dict.keys())]
+        z_all = torch.cat([z_shared] + pi_list, dim=-1)  # (B, D)
+        z_centered = z_all - z_all.mean(dim=0, keepdim=True)
+        cov = (z_centered.T @ z_centered) / float(batch_size - 1)
+        off_diag = cov - torch.diag(torch.diag(cov))
+        tc_loss = off_diag.pow(2).mean()
+
+        zs = z_shared - z_shared.mean(dim=0, keepdim=True)
+        mi_loss = z_shared.new_zeros(())
+        for zp in pi_list:
+            zp0 = zp - zp.mean(dim=0, keepdim=True)
+            cross = (zs.T @ zp0) / float(batch_size - 1)
+            mi_loss = mi_loss + cross.pow(2).mean()
+        mi_loss = mi_loss / max(len(pi_list), 1)
+        return tc_loss, mi_loss
+
+    def forward(
+        self,
+        protein_pos,
+        protein_atom_feature,
+        ligand_pos,
+        ligand_atom_feature,
+        batch_protein,
+        batch_ligand,
+        *,
+        return_losses: bool = True,
+    ):
+        enc = self.encode(
+            protein_pos=protein_pos,
+            protein_atom_feature=protein_atom_feature,
+            ligand_pos=ligand_pos,
+            ligand_atom_feature=ligand_atom_feature,
+            batch_protein=batch_protein,
+            batch_ligand=batch_ligand,
+        )
+
+        z_shared = enc["z_shared"]
+        z_pi = enc["z_pi"]
+
+        z_concat = torch.cat([z_shared] + [z_pi[k] for k in sorted(z_pi.keys())], dim=-1)
+        recon_h = self.decoder(z_concat)
+        mse_recon = F.mse_loss(recon_h, enc["graph_h"], reduction="mean")
+
+        kl_shared = _kl_std_normal(enc["z_shared_mu"], enc["z_shared_logvar"]).mean()
+        kl_pi = []
+        for k in sorted(enc["z_pi_mu"].keys()):
+            kl_pi.append(_kl_std_normal(enc["z_pi_mu"][k], enc["z_pi_logvar"][k]))
+        if len(kl_pi) > 0:
+            kl_pi = torch.stack([x.mean() for x in kl_pi]).mean()
+        else:
+            kl_pi = mse_recon.new_zeros(())
+
+        recon_loss = mse_recon + self.beta_kl * (kl_shared + kl_pi)
+        tc_loss, mi_loss = self._covariance_penalties(z_shared, z_pi)
+
+        losses = {
+            "recon_loss": recon_loss,
+            "tc_loss": self.tc_weight * tc_loss,
+            "mi_loss": self.mi_weight * mi_loss,
+        }
+
+        out = {
+            "z_shared": z_shared,
+            "z_pi": z_pi,
+        }
+        if return_losses:
+            out["losses"] = losses
+        return out

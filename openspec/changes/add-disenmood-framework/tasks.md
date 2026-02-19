@@ -15,7 +15,7 @@
   BUNDLE (RUN #2): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #2): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 3f09452 | COMMIT_MSG: "首次提交 (checkpoint: task-1.1 R1 PASS — augment_admet_labels.py + models/admet_model.py)" | FILES: scripts/augment_admet_labels.py,models/admet_model.py,auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/
 
-- [ ] 1.2 Implement disentangled VAE with z_shared and {z_pi} losses (models/egnn.py, models/guide_model.py) [#R2]
+- [x] 1.2 Implement disentangled VAE with z_shared and {z_pi} losses (models/egnn.py, models/guide_model.py) [#R2]
   - ACCEPT: 训练前向输出包含 z_shared 与每个 z_pi（如 `models/egnn.py` / `models/guide_model.py` 中的编码输出），损失包含重建项与解耦正则项。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -24,6 +24,8 @@
     - Inputs: inputs/mini_batch.pt
       Outputs: outputs/vae_losses.json
     - Verify: JSON 包含 recon_loss、tc_loss、mi_loss 字段且 z_shared/z_pi 形状符合配置
+  BUNDLE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: (pending) | COMMIT_MSG: (pending) | DIFFSTAT: models/egnn.py +59, models/guide_model.py +218
 
 - [ ] 1.3 Implement backbone-branch latent diffusion for z_shared and z_pi (models/molopt_score_model.py) [#R3]
   - ACCEPT: 主干与各分支可独立前向/反向扩散（`models/molopt_score_model.py`），采样输出完整潜在集合。
