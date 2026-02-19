@@ -1,0 +1,152 @@
+UTC_TIMESTAMP=20260219T145204Z
+CHANGE_ID=add-disenmood-framework
+TASK=1.6
+REF=R6
+CWD=/Users/mac/Downloads/code/project/CorrDiff
+GIT_BASE=278185c
+
+== git log --oneline -20 ==
+278185c [openspec] task-1.5 R5 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+63bdd87 [openspec] task-1.5 R5 PASS: GuidedBranchSampler training-free energy guidance
+c49dca1 [openspec] task-1.4 R4 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+85b0530 [openspec] task-1.4 R4 PASS: CorrelationMatrixModule with gated branch interaction
+33f81b5 [openspec] task-1.3 R3 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+c7836f6 [openspec] task-1.3 R3 PASS: BranchDiffusion backbone-branch latent diffusion
+f6de830 [openspec] task-1.2 R2 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+0935c5a [openspec] task-1.2 R2 PASS: DisentangledVAE (z_shared + z_pi) with tc_loss/mi_loss
+5dc60bd [openspec] task-1.1 R1 bookkeeping: finalize RUN#2 DONE evidence + runs.log
+3f09452 首次提交
+40d1306 首次提交
+
+== openspec/changes/add-disenmood-framework/progress.txt (head) ==
+================================================================================
+PROGRESS LOG - change-id: add-disenmood-framework
+Initialized: 2026-02-19T00:00:00Z
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T12:00:00Z     Run: #1     Attempt: 1
+Change: add-disenmood-framework           Task: 1.1   Ref: R1
+
+Status: FAIL
+
+Git anchors (this RUN):
+- (Not PASS) No checkpoint commit. GIT_BASE=769fa95 (Update README.md)
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #1) under task 1.1 — RESULT: FAIL
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0001__task-1.1__ref-R1__20260219T115944Z/
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0001__task-1.1__ref-R1__20260219T115944Z/logs/worker_startup.txt
+
+Validation steps:
+  CMD: bash auto_test_openspec/add-disenmood-framework/run-0001__task-1.1__ref-R1__20260219T115944Z/run.sh
+  EXIT_CODE: 1
+  Error excerpt:
+    FileNotFoundError: [Errno 2] No such file or directory:
+    '/Users/mac/Downloads/code/project/MoC/inputs/smiles_list.txt'
+    (from inline Python heredoc at line ~21: in_path.read_text())
+  Root cause: Path(__file__).resolve().parent in a stdin/heredoc Python context resolves to
+    CWD (project root), not the run-folder. augment_admet_labels.py itself ran successfully
+    and outputs/augmented_labels.json is correct (3 entries x 10 properties).
+
+Retry decision: ATTEMPT 1 < MAX_ATTEMPTS 2 → retry with Attempt #2 (fresh subagent, new run-folder).
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.1, RUN #1, Attempt #1.
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium "...">
+[Subagent] Worker completed. BUNDLE (RUN #1) appended. Bundle folder: run-0001__task-1.1__ref-R1__20260219T115944Z. Files: task.md, run.sh, run.bat, inputs/, outputs/, logs/worker_startup.txt.
+[Supervisor] Ran bash run.sh → EXIT_CODE=1. Error: Path(__file__) in heredoc resolves to CWD. Output file correct; assertion script path wrong.
+[Supervisor] RESULT: FAIL. Wrote EVIDENCE (RUN #1, FAIL) + REVIEW + UNBLOCK GUIDANCE to tasks.md. Retrying as Attempt #2.
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T12:20:00Z     Run: #2     Attempt: 2
+Change: add-disenmood-framework           Task: 1.1   Ref: R1
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 3f09452 "首次提交 (task-1.1 R1 PASS — scripts/augment_admet_labels.py + models/admet_model.py)"
+- Files: scripts/augment_admet_labels.py, models/admet_model.py, auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #2) under task 1.1 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/logs/worker_startup.txt
+- feature_list.json: entry ref=="R1" passes confirmed true (Supervisor-confirmed)
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#2 entry recorded
+
+Validation steps:
+  CMD: bash auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/run.sh
+  EXIT_CODE: 0
+  Output excerpt: augmented_labels.json verified — 3 SMILES x 10 properties, all required keys present.
+
+Changes verified:
+  - scripts/augment_admet_labels.py: offline ADMET augmentation script using ADMETModel.predict
+  - models/admet_model.py: ADMETModel for PAMPA_NCATS, BBB_Martins, logP, Clearance_Microsome_AZ, hERG, affinity, QED, SA, AMES, lipinski
+  - auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/: validation bundle
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.1, RUN #2, Attempt #2 (fix Path resolution via BUNDLE_DIR env var).
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium "...">
+[Subagent] Worker completed. BUNDLE (RUN #2) appended. Bundle folder: run-0002__task-1.1__ref-R1__20260219T121744Z.
+[Supervisor] Ran bash run.sh → EXIT_CODE=0. outputs/augmented_labels.json verified.
+[Supervisor] RESULT: PASS. Checkbox [x] toggled. feature_list.json R1 passes=true confirmed. Created runs.log. Updated EVIDENCE (RUN #2) with commit SHA 3f09452.
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T13:00:00Z     Run: #3     Attempt: 1
+Change: add-disenmood-framework           Task: 1.2   Ref: R2
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 0935c5a "[openspec] task-1.2 R2 PASS: DisentangledVAE (z_shared + z_pi) with tc_loss/mi_loss"
+- Diffstat: 12 files changed, 612 insertions(+), 3 deletions(-)
+- Files: models/egnn.py, models/guide_model.py, auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #3) under task 1.2 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/logs/worker_startup.txt
+- feature_list.json: entry ref=="R2" passes changed false→true (Supervisor-confirmed)
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#3 entry appended
+
+Validation steps:
+  CMD: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/run.sh
+  EXIT_CODE: 0
+  Output (vae_losses.json excerpt):
+    recon_loss: 0.259, tc_loss: 0.327, mi_loss: 0.321
+    z_shared_shape: [4, 12], z_pi p0..p9 each [4, 7]
+  All required keys present; shapes match config (batch=4, z_shared_dim=12, z_pi_dim=7, 10 props).
+
+Changes verified:
+  - models/guide_model.py: +218 lines — DisentangledVAE class (encode, forward, covariance_penalties, reparameterize, kl_std_normal)
+  - models/egnn.py: +59 lines — EGNNGraphEncoder wrapper for VAE
+  - auto_test_openspec/.../run-0003__task-1.2__ref-R2__20260219T125411Z/: validation bundle (task.md, run.sh, run.bat, run_vae_bundle.py, inputs/, outputs/, logs/)
+
+--------------------------------------------------------------------------------
+
+== openspec/changes/add-disenmood-framework/feature_list.json (grep ref R6) ==
+[
+  {
+    "ref": "R6",
+    "task": "1.6",
+    "description": "Correlation-aware multi-objective guidance and Pareto selection (models/molopt_score_model.py)",
+    "scope": "CLI",
+    "passes": false
+  }
+]

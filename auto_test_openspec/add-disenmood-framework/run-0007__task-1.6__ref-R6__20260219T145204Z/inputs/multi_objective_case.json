@@ -1,0 +1,2 @@
+{"n_props": 4, "n_candidates": 8, "corr_threshold": 0.6, "objectives": ["qed", "sa", "logp", "affinity"]}
+

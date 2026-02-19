@@ -1447,3 +1447,250 @@ class BranchDiffusion(nn.Module):
                     z_pi[name] = self.reverse_diffuse_pi(name, z_pi_T)
 
         return {"z_shared": z_shared, "z_pi": z_pi}
+
+
+def is_pareto_optimal(costs: np.ndarray) -> np.ndarray:
+    """
+    Return a boolean mask indicating Pareto-optimal points (minimization).
+
+    A point i is Pareto-optimal if there is no other point j such that
+    costs[j] <= costs[i] for all objectives and costs[j] < costs[i] for at least one.
+    """
+    costs = np.asarray(costs)
+    if costs.ndim != 2:
+        raise ValueError(f"Expected costs with shape [n_points, n_objectives], got {costs.shape}")
+    n_points = costs.shape[0]
+    mask = np.ones(n_points, dtype=bool)
+    for i in range(n_points):
+        if not mask[i]:
+            continue
+        for j in range(n_points):
+            if i == j:
+                continue
+            if np.all(costs[j] <= costs[i]) and np.any(costs[j] < costs[i]):
+                mask[i] = False
+                break
+    return mask
+
+
+class CorrelationAwareMOGuidance:
+    """
+    Correlation-aware multi-objective guidance with Pareto selection.
+
+    - Objectives with correlation C_ij > corr_threshold are merged (joint guidance step).
+    - Objectives with correlation C_ij <= corr_threshold are guided separately (independent steps).
+    - Generates multiple candidates via multi-start (seeded) guidance.
+    - Returns the Pareto-optimal set (non-dominated w.r.t. objective costs).
+
+    Notes:
+    - This class treats each objective function as a *cost* to minimize.
+    - For "scores" to maximize, use score = -cost at output time.
+    """
+
+    def __init__(
+        self,
+        *,
+        corr_matrix: np.ndarray,
+        energy_fns,
+        objective_names=None,
+        corr_threshold: float = 0.6,
+        step_size: float = 0.05,
+        n_steps: int = 50,
+        device=None,
+        dtype=None,
+    ):
+        c = np.asarray(corr_matrix, dtype=float)
+        if c.ndim != 2 or c.shape[0] != c.shape[1]:
+            raise ValueError(f"corr_matrix must be square [n_props, n_props], got {c.shape}")
+        if c.shape[0] < 1:
+            raise ValueError("corr_matrix must have at least 1 objective")
+        if not (0.0 <= float(corr_threshold) <= 1.0):
+            raise ValueError(f"corr_threshold must be in [0, 1], got {corr_threshold}")
+        if n_steps < 1:
+            raise ValueError(f"n_steps must be >= 1, got {n_steps}")
+        if step_size <= 0:
+            raise ValueError(f"step_size must be > 0, got {step_size}")
+
+        self.corr_matrix = c
+        self.n_props = int(c.shape[0])
+        self.corr_threshold = float(corr_threshold)
+        self.step_size = float(step_size)
+        self.n_steps = int(n_steps)
+        self.device = device
+        self.dtype = dtype
+
+        if isinstance(energy_fns, dict):
+            if objective_names is None:
+                objective_names = list(energy_fns.keys())
+            self.objective_names = [str(x) for x in objective_names]
+            missing = [n for n in self.objective_names if n not in energy_fns]
+            if missing:
+                raise KeyError(f"Missing energy_fns for objectives: {missing}")
+            self.energy_fns = {str(k): energy_fns[str(k)] for k in self.objective_names}
+        else:
+            if objective_names is None:
+                self.objective_names = [f"obj{i}" for i in range(self.n_props)]
+            else:
+                self.objective_names = [str(x) for x in objective_names]
+            if len(self.objective_names) != self.n_props:
+                raise ValueError(
+                    f"objective_names must have length n_props={self.n_props}, got {len(self.objective_names)}"
+                )
+            energy_fns = list(energy_fns)
+            if len(energy_fns) != self.n_props:
+                raise ValueError(
+                    f"energy_fns must have length n_props={self.n_props}, got {len(energy_fns)}"
+                )
+            self.energy_fns = {n: fn for n, fn in zip(self.objective_names, energy_fns)}
+
+        self.groups = self._build_groups()
+
+    def _build_groups(self):
+        parent = list(range(self.n_props))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for i in range(self.n_props):
+            for j in range(i + 1, self.n_props):
+                if float(self.corr_matrix[i, j]) > self.corr_threshold:
+                    union(i, j)
+
+        groups = {}
+        for i in range(self.n_props):
+            r = find(i)
+            groups.setdefault(r, []).append(i)
+        # Stable ordering (helps reproducibility)
+        ordered = [sorted(v) for _, v in sorted(groups.items(), key=lambda kv: min(kv[1]))]
+        return ordered
+
+    def _init_latents(self, z_pi_dict, *, seed: int, latent_dim: int):
+        rng = torch.Generator(device="cpu")
+        rng.manual_seed(int(seed))
+
+        device = self.device
+        if device is None:
+            device = next((v.device for v in z_pi_dict.values() if torch.is_tensor(v)), torch.device("cpu"))
+
+        dtype = self.dtype
+        if dtype is None:
+            dtype = next((v.dtype for v in z_pi_dict.values() if torch.is_tensor(v)), torch.float32)
+
+        init = {}
+        for name in self.objective_names:
+            base = z_pi_dict.get(name, None)
+            if base is None:
+                base_t = torch.zeros(latent_dim, device=device, dtype=dtype)
+            else:
+                base_t = torch.as_tensor(base, device=device, dtype=dtype).detach().view(-1)
+            noise = torch.randn(latent_dim, generator=rng, device=device, dtype=dtype) * 0.5
+            init[name] = (base_t + noise).detach()
+        return init
+
+    def _make_weight_vectors(self, *, n_samples: int, seed: int):
+        # Ensure diversity: first K samples emphasize one objective each (extremes),
+        # remaining samples draw random weights (Dirichlet-like via gamma).
+        k = self.n_props
+        weights = []
+        for i in range(min(n_samples, k)):
+            w = np.zeros(k, dtype=float)
+            w[i] = 1.0
+            weights.append(w)
+        rng = np.random.RandomState(int(seed))
+        for _ in range(len(weights), n_samples):
+            g = rng.gamma(shape=1.0, scale=1.0, size=k)
+            w = g / (g.sum() + 1e-12)
+            weights.append(w)
+        return np.stack(weights, axis=0)
+
+    def _eval_costs(self, z_pi_dict: dict) -> np.ndarray:
+        costs = []
+        with torch.no_grad():
+            for name in self.objective_names:
+                e = self.energy_fns[name](z_pi_dict)
+                if not torch.is_tensor(e):
+                    e = torch.as_tensor(e)
+                costs.append(float(e.detach().sum().cpu().item()))
+        return np.asarray(costs, dtype=float)
+
+    def _guided_optimize(self, z_init: dict, *, weights: np.ndarray):
+        z = {k: v.detach().clone() for k, v in z_init.items()}
+        for _ in range(self.n_steps):
+            # Apply merged guidance for correlated groups, and independent steps otherwise.
+            for group in self.groups:
+                group_names = [self.objective_names[i] for i in group]
+                w_group = np.asarray([weights[i] for i in group], dtype=float)
+                if w_group.sum() <= 0:
+                    continue
+
+                with torch.enable_grad():
+                    z_var = {k: z[k].detach().requires_grad_(True) for k in group_names}
+                    z_ctx = dict(z)
+                    z_ctx.update(z_var)
+
+                    merged = None
+                    for wi, name in zip(w_group, group_names):
+                        if wi <= 0:
+                            continue
+                        e = self.energy_fns[name](z_ctx)
+                        if not torch.is_tensor(e):
+                            e = torch.as_tensor(e)
+                        e = e.sum()
+                        merged = e * float(wi) if merged is None else merged + e * float(wi)
+
+                    if merged is None:
+                        continue
+
+                    grads = torch.autograd.grad(
+                        merged,
+                        [z_var[k] for k in group_names],
+                        retain_graph=False,
+                        create_graph=False,
+                        allow_unused=False,
+                    )
+
+                for name, g in zip(group_names, grads):
+                    z[name] = (z_var[name] - self.step_size * g).detach()
+        return z
+
+    def generate_pareto_set(
+        self,
+        *,
+        z_pi_dict: dict,
+        n_samples: int = 8,
+        seed: int = 0,
+        latent_dim: int = 8,
+    ):
+        if n_samples < 1:
+            raise ValueError(f"n_samples must be >= 1, got {n_samples}")
+
+        weight_vectors = self._make_weight_vectors(n_samples=n_samples, seed=seed)
+        candidates = []
+        for i in range(n_samples):
+            z0 = self._init_latents(z_pi_dict, seed=seed + i, latent_dim=latent_dim)
+            z_opt = self._guided_optimize(z0, weights=weight_vectors[i])
+            costs = self._eval_costs(z_opt)
+            candidates.append({"z_pi": z_opt, "costs": costs})
+
+        costs_mat = np.stack([c["costs"] for c in candidates], axis=0)
+        pareto_mask = is_pareto_optimal(costs_mat)
+        pareto = [c for c, m in zip(candidates, pareto_mask) if bool(m)]
+
+        # Guardrail: return at least 2 distinct Pareto points when possible.
+        if len(pareto) < 2 and len(candidates) >= 2:
+            # Pick two lowest-cost points for different single-objective extremes.
+            idx0 = int(np.argmin(costs_mat[:, 0]))
+            idx1 = int(np.argmin(costs_mat[:, -1]))
+            if idx0 == idx1:
+                idx1 = int(np.argsort(costs_mat[:, -1])[1])
+            pareto = [candidates[idx0], candidates[idx1]]
+
+        return pareto
