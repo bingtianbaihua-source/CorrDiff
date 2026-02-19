@@ -21,7 +21,7 @@
       "task": "1.3",
       "description": "Backbone-branch latent diffusion for z_shared and z_pi (models/molopt_score_model.py)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R4",
