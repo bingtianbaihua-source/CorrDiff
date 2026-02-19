@@ -1,0 +1,13 @@
+UTC_TIMESTAMP=20260219T121744Z
+CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium
+GIT_BASE=769fa95
+
+GIT_LOG_EXCERPT (git log --oneline -20)
+769fa95 Update README.md
+5e2f92d upload
+
+WHAT_I_OBSERVED
+- feature_list.json exists and contains ref=R1 for task 1.1 (scope: CLI).
+- Prior RUN #1 bundle failed due to inline Python heredoc using Path(__file__).resolve().parent, which resolves to the CWD in stdin/heredoc context.
+- This RUN #2 bundle fixes the assertion root path resolution via BUNDLE_DIR.
+

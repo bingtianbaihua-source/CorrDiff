@@ -1,0 +1,44 @@
+================================================================================
+PROGRESS LOG - change-id: add-disenmood-framework
+Initialized: 2026-02-19T00:00:00Z
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T12:00:00Z     Run: #1     Attempt: 1
+Change: add-disenmood-framework           Task: 1.1   Ref: R1
+
+Status: FAIL
+
+Git anchors (this RUN):
+- (Not PASS) No checkpoint commit. GIT_BASE=769fa95 (Update README.md)
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #1) under task 1.1 — RESULT: FAIL
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0001__task-1.1__ref-R1__20260219T115944Z/
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0001__task-1.1__ref-R1__20260219T115944Z/logs/worker_startup.txt
+
+Validation steps:
+  CMD: bash auto_test_openspec/add-disenmood-framework/run-0001__task-1.1__ref-R1__20260219T115944Z/run.sh
+  EXIT_CODE: 1
+  Error excerpt:
+    FileNotFoundError: [Errno 2] No such file or directory:
+    '/Users/mac/Downloads/code/project/MoC/inputs/smiles_list.txt'
+    (from inline Python heredoc at line ~21: in_path.read_text())
+  Root cause: Path(__file__).resolve().parent in a stdin/heredoc Python context resolves to
+    CWD (project root), not the run-folder. augment_admet_labels.py itself ran successfully
+    and outputs/augmented_labels.json is correct (3 entries x 10 properties).
+
+Retry decision: ATTEMPT 1 < MAX_ATTEMPTS 2 → retry with Attempt #2 (fresh subagent, new run-folder).
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.1, RUN #1, Attempt #1.
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium "...">
+[Subagent] Worker completed. BUNDLE (RUN #1) appended. Bundle folder: run-0001__task-1.1__ref-R1__20260219T115944Z. Files: task.md, run.sh, run.bat, inputs/, outputs/, logs/worker_startup.txt.
+[Supervisor] Ran bash run.sh → EXIT_CODE=1. Error: Path(__file__) in heredoc resolves to CWD. Output file correct; assertion script path wrong.
+[Supervisor] RESULT: FAIL. Wrote EVIDENCE (RUN #1, FAIL) + REVIEW + UNBLOCK GUIDANCE to tasks.md. Retrying as Attempt #2.
+================================================================================
