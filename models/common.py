@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import knn_graph
 
 
 class GaussianSmearing(nn.Module):
@@ -178,7 +177,8 @@ def batch_hybrid_edge_connection(x, k, mask_ligand, batch, add_p_index=False):
             batch_pl_edge_index.append(pl_edge_index)
             if add_p_index:
                 all_pos = torch.cat([protein_pos, ligand_pos], 0)
-                p_edge_index = knn_graph(all_pos, k=k, flow='source_to_target')
+                from torch_geometric.nn import knn_graph as pyg_knn_graph
+                p_edge_index = pyg_knn_graph(all_pos, k=k, flow='source_to_target')
                 p_edge_index = p_edge_index[:, p_edge_index[1] < len(protein_pos)]
                 p_src, p_dst = p_edge_index
                 all_index = torch.cat([protein_index, ligand_index], 0)

@@ -39,7 +39,7 @@
   BUNDLE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0004__task-1.3__ref-R3__20260219T134302Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0004__task-1.3__ref-R3__20260219T134302Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0004__task-1.3__ref-R3__20260219T134302Z/logs/worker_startup.txt | VALIDATED_CLI: BUNDLE_DIR=<run-folder> OMP_NUM_THREADS=1 KMP_USE_SHM=0 PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff python3 runner.py | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: c7836f6 | COMMIT_MSG: "[openspec] task-1.3 R3 PASS: BranchDiffusion backbone-branch latent diffusion" | DIFFSTAT: 17 files changed, 471 insertions(+), 1 deletion(-)
 
-- [ ] 1.4 Implement correlation matrix module from molecule/pocket graphs with gated branch interaction (models/egnn.py, models/guide_model.py) [#R4]
+- [x] 1.4 Implement correlation matrix module from molecule/pocket graphs with gated branch interaction (models/egnn.py, models/guide_model.py) [#R4]
   - ACCEPT: 相关性矩阵 C 由分子图/口袋图预测（`models/egnn.py` / `models/guide_model.py`），并用于分支交互掩码控制。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -48,6 +48,8 @@
     - Inputs: inputs/mini_batch.pt
     - Outputs: outputs/correlation_matrix.npy
     - Verify: C 为对称矩阵且对角为 1，掩码影响分支信息流（通过日志/统计验证）
+  BUNDLE (RUN #5): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #5): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: (pending) | COMMIT_MSG: (pending) | DIFFSTAT: (pending)
 
 - [ ] 1.5 Implement training-free energy guidance with branch-local gradients and freezing (models/guide_model.py, models/molopt_score_model.py) [#R5]
   - ACCEPT: 指定目标属性时仅对应分支被引导（`models/guide_model.py`/`models/molopt_score_model.py`），冻结属性不被更新。

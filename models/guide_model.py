@@ -6,7 +6,7 @@ from torch_scatter import scatter, scatter_mean
 from tqdm.auto import tqdm
 
 from models.common import compose_context, ShiftedSoftplus
-from models.egnn import EGNN
+from models.egnn import EGNN, CorrelationMatrixModule
 
 
 def get_refine_net(refine_net_type, config):
@@ -618,6 +618,56 @@ class DisentangledVAE(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
         )
 
+        enable_corr = bool(_cfg_get(config, "enable_correlation_matrix", True))
+        self.corr_threshold = float(_cfg_get(config, "corr_threshold", 0.5))
+        self.corr_branch_interaction_strength = float(_cfg_get(config, "corr_branch_interaction_strength", 0.0))
+        if enable_corr:
+            corr_hidden_dim = int(_cfg_get(config, "corr_hidden_dim", hidden_dim))
+            corr_num_layers = int(_cfg_get(config, "corr_num_layers", 2))
+            corr_norm = bool(_cfg_get(config, "corr_norm", False))
+            corr_act_fn = _cfg_get(config, "corr_act_fn", "silu")
+            self.corr_module = CorrelationMatrixModule(
+                mol_dim=hidden_dim,
+                pocket_dim=hidden_dim,
+                n_props=len(self.property_names),
+                hidden_dim=corr_hidden_dim,
+                num_layers=corr_num_layers,
+                norm=corr_norm,
+                act_fn=corr_act_fn,
+            )
+        else:
+            self.corr_module = None
+
+    @staticmethod
+    def apply_branch_interaction(mu_stack: torch.Tensor, branch_mask: torch.Tensor, strength: float):
+        """
+        Apply masked cross-branch mixing to per-property means.
+
+        Args:
+            mu_stack: (B, P, D)
+            branch_mask: (B, P, P) boolean
+            strength: scalar mixing strength
+        Returns:
+            mu_mixed: (B, P, D)
+            stats: dict with tensor stats (device-local)
+        """
+        if mu_stack.dim() != 3:
+            raise ValueError(f"mu_stack must be (B, P, D), got: {tuple(mu_stack.shape)}")
+        if branch_mask.dim() != 3:
+            raise ValueError(f"branch_mask must be (B, P, P), got: {tuple(branch_mask.shape)}")
+        if mu_stack.shape[0] != branch_mask.shape[0] or mu_stack.shape[1] != branch_mask.shape[1]:
+            raise ValueError("mu_stack and branch_mask batch/property dims must match")
+
+        w = branch_mask.float()
+        eye = torch.eye(w.shape[-1], device=w.device, dtype=torch.bool)
+        w = w.masked_fill(eye.unsqueeze(0), 0.0)  # exclude self-loop for mixing
+        denom = w.sum(dim=-1, keepdim=True).clamp_min(1.0)
+        mix = torch.bmm(w, mu_stack) / denom
+
+        mu_mixed = mu_stack + float(strength) * mix
+        mean_abs_delta_mu = (mu_mixed - mu_stack).abs().mean()
+        return mu_mixed, {"mean_abs_delta_mu": mean_abs_delta_mu.detach(), "mask_nnz": branch_mask.sum().detach()}
+
     def encode(self, protein_pos, protein_atom_feature, ligand_pos, ligand_atom_feature, batch_protein, batch_ligand):
         h_protein = self.protein_atom_emb(protein_atom_feature.float())
         h_ligand = self.ligand_atom_emb(ligand_atom_feature.float())
@@ -633,6 +683,25 @@ class DisentangledVAE(nn.Module):
         gnn_out = self.encoder_gnn(h_all, pos_all, mask_ligand, batch_all, return_all=False, fix_x=True)
         graph_h = scatter_mean(gnn_out["h"], index=batch_all, dim=0)
 
+        # Per-graph pooled representations for molecule (ligand) and pocket (protein).
+        h_nodes = gnn_out["h"]
+        mol_m = mask_ligand.float()
+        pocket_m = (~mask_ligand).float()
+
+        mol_sum = scatter(h_nodes * mol_m.unsqueeze(-1), index=batch_all, dim=0, reduce="sum")
+        mol_cnt = scatter(mol_m, index=batch_all, dim=0, reduce="sum").unsqueeze(-1).clamp_min(1.0)
+        mol_pooled = mol_sum / mol_cnt
+
+        pocket_sum = scatter(h_nodes * pocket_m.unsqueeze(-1), index=batch_all, dim=0, reduce="sum")
+        pocket_cnt = scatter(pocket_m, index=batch_all, dim=0, reduce="sum").unsqueeze(-1).clamp_min(1.0)
+        pocket_pooled = pocket_sum / pocket_cnt
+
+        corr_matrix = None
+        branch_mask = None
+        if self.corr_module is not None:
+            corr_matrix = self.corr_module(mol_pooled=mol_pooled, pocket_pooled=pocket_pooled)
+            branch_mask = self.corr_module.get_branch_mask(corr_matrix, threshold=self.corr_threshold)
+
         shared_stats = self.shared_head(graph_h)
         shared_mu, shared_logvar = torch.split(shared_stats, self.z_shared_dim, dim=-1)
         z_shared = _reparameterize(shared_mu, shared_logvar)
@@ -645,16 +714,34 @@ class DisentangledVAE(nn.Module):
             mu, logvar = torch.split(stats, self.z_pi_dim, dim=-1)
             z_pi_mu[name] = mu
             z_pi_logvar[name] = logvar
-            z_pi[name] = _reparameterize(mu, logvar)
+
+        branch_interaction_stats = None
+        if branch_mask is not None and self.corr_branch_interaction_strength > 0.0:
+            prop_names = list(self.property_names)
+            mu_stack = torch.stack([z_pi_mu[n] for n in prop_names], dim=1)  # (B, P, D)
+            mu_stack, branch_interaction_stats = self.apply_branch_interaction(
+                mu_stack, branch_mask=branch_mask, strength=self.corr_branch_interaction_strength
+            )
+
+            for idx, n in enumerate(prop_names):
+                z_pi_mu[n] = mu_stack[:, idx, :]
+
+        for name in self.property_names:
+            z_pi[name] = _reparameterize(z_pi_mu[name], z_pi_logvar[name])
 
         return {
             "graph_h": graph_h,
+            "mol_pooled": mol_pooled,
+            "pocket_pooled": pocket_pooled,
             "z_shared": z_shared,
             "z_shared_mu": shared_mu,
             "z_shared_logvar": shared_logvar,
             "z_pi": z_pi,
             "z_pi_mu": z_pi_mu,
             "z_pi_logvar": z_pi_logvar,
+            "corr_matrix": corr_matrix,
+            "branch_mask": branch_mask,
+            "branch_interaction_stats": branch_interaction_stats,
         }
 
     @staticmethod
@@ -729,6 +816,12 @@ class DisentangledVAE(nn.Module):
             "z_shared": z_shared,
             "z_pi": z_pi,
         }
+        if enc.get("corr_matrix", None) is not None:
+            out["corr_matrix"] = enc["corr_matrix"]
+        if enc.get("branch_mask", None) is not None:
+            out["branch_mask"] = enc["branch_mask"]
+        if enc.get("branch_interaction_stats", None) is not None:
+            out["branch_interaction_stats"] = enc["branch_interaction_stats"]
         if return_losses:
             out["losses"] = losses
         return out

@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter_sum
-from torch_geometric.nn import radius_graph, knn_graph
 from models.common import GaussianSmearing, MLP, batch_hybrid_edge_connection, NONLINEARITIES
 
 
@@ -96,7 +95,8 @@ class EGNN(nn.Module):
         # if self.cutoff_mode == 'radius':
         #     edge_index = radius_graph(x, r=self.r, batch=batch, flow='source_to_target')
         if self.cutoff_mode == 'knn':
-            edge_index = knn_graph(x, k=self.k, batch=batch, flow='source_to_target')
+            from torch_geometric.nn import knn_graph as pyg_knn_graph
+            edge_index = pyg_knn_graph(x, k=self.k, batch=batch, flow='source_to_target')
         elif self.cutoff_mode == 'hybrid':
             edge_index = batch_hybrid_edge_connection(
                 x, k=self.k, mask_ligand=mask_ligand, batch=batch, add_p_index=True)
@@ -188,3 +188,79 @@ class EGNNGraphEncoder(nn.Module):
         if return_node:
             outputs["node_h"] = out["h"]
         return outputs
+
+
+class CorrelationMatrixModule(nn.Module):
+    """
+    Predict a per-sample symmetric correlation matrix C in (0, 1) with diagonal set to 1.
+
+    Intended usage: pool (graph-level) embeddings from ligand/molecule and protein/pocket subgraphs,
+    concatenate them, and map to the upper-triangular entries of C.
+    """
+
+    def __init__(
+        self,
+        *,
+        mol_dim: int,
+        pocket_dim: int,
+        n_props: int,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+        norm: bool = False,
+        act_fn: str = "silu",
+    ):
+        super().__init__()
+        if n_props <= 0:
+            raise ValueError(f"n_props must be > 0, got: {n_props}")
+        self.n_props = int(n_props)
+        out_dim = self.n_props * (self.n_props + 1) // 2
+        self.mlp = MLP(
+            mol_dim + pocket_dim,
+            out_dim,
+            hidden_dim,
+            num_layer=num_layers,
+            norm=norm,
+            act_fn=act_fn,
+            act_last=False,
+        )
+
+    def forward(self, mol_pooled: torch.Tensor, pocket_pooled: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            mol_pooled: (B, D_m)
+            pocket_pooled: (B, D_p)
+        Returns:
+            C: (B, P, P) symmetric, in (0, 1) with diag==1
+        """
+        if mol_pooled.dim() != 2 or pocket_pooled.dim() != 2:
+            raise ValueError("mol_pooled and pocket_pooled must be 2D tensors (B, D)")
+        if mol_pooled.shape[0] != pocket_pooled.shape[0]:
+            raise ValueError("mol_pooled and pocket_pooled must have same batch size")
+
+        bsz = mol_pooled.shape[0]
+        vec = torch.sigmoid(self.mlp(torch.cat([mol_pooled, pocket_pooled], dim=-1)))
+        c = vec.new_zeros((bsz, self.n_props, self.n_props))
+        triu = torch.triu_indices(self.n_props, self.n_props, offset=0, device=vec.device)
+        c[:, triu[0], triu[1]] = vec
+        c = c + c.transpose(1, 2) - torch.diag_embed(torch.diagonal(c, dim1=1, dim2=2))
+        diag = torch.arange(self.n_props, device=vec.device)
+        c[:, diag, diag] = 1.0
+        return c
+
+    def get_branch_mask(self, c: torch.Tensor, threshold: float = 0.5) -> torch.Tensor:
+        """
+        Args:
+            c: (P, P) or (B, P, P) correlation matrix
+        Returns:
+            mask: same shape as c, boolean; diagonal always True
+        """
+        if c.dim() not in (2, 3):
+            raise ValueError(f"c must be 2D or 3D, got shape: {tuple(c.shape)}")
+        mask = c >= float(threshold)
+        if c.dim() == 2:
+            diag = torch.arange(c.shape[0], device=c.device)
+            mask[diag, diag] = True
+        else:
+            diag = torch.arange(c.shape[1], device=c.device)
+            mask[:, diag, diag] = True
+        return mask

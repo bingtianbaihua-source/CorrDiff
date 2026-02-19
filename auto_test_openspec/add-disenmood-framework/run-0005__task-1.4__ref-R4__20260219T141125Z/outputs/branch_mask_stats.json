@@ -1,0 +1,10 @@
+{
+  "symmetric": true,
+  "diagonal_ones": true,
+  "mask_nnz": 202,
+  "threshold": 0.5,
+  "interaction_strength": 1.0,
+  "mean_abs_delta_mu": 0.4005398452281952,
+  "mask_nnz_threshold_0p9": 40,
+  "mean_abs_delta_mu_threshold_0p9": 0.0
+}
