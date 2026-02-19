@@ -167,3 +167,43 @@ Changes verified:
 [Supervisor] run.sh EXIT_CODE=138 (SIGBUS from DYLD_INSERT_LIBRARIES shim). runner.py directly EXIT_CODE=0.
 [Supervisor] RESULT: PASS. Toggled [x]. Updated EVIDENCE (RUN #4) with commit c7836f6. R3 passes=true. Appended runs.log RUN#4.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T14:20:00Z     Run: #5     Attempt: 1
+Change: add-disenmood-framework           Task: 1.4   Ref: R4
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 85b0530 "[openspec] task-1.4 R4 PASS: CorrelationMatrixModule with gated branch interaction"
+- Diffstat: 17 files changed, 500 insertions(+), 7 deletions(-)
+- Files: models/egnn.py, models/guide_model.py, auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #5) under task 1.4 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/logs/worker_startup.txt
+- feature_list.json: entry ref=="R4" passes changed false→true
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#5 entry appended
+
+Validation steps:
+  CMD: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash run-0005__task-1.4__ref-R4__20260219T141125Z/run.sh
+  EXIT_CODE: 0
+  Output: correlation_matrix.npy shape=(4,10,10), symmetric=True, diagonal_ones=True, mask_nnz=202
+
+Changes verified:
+  - models/egnn.py: CorrelationMatrixModule class (MLP: mol+pocket pooled → n_props*(n_props+1)/2 → symmetric C, sigmoid, diag=1)
+  - models/guide_model.py: integrate CorrelationMatrixModule into DisentangledVAE; add apply_branch_interaction() static method
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.4, RUN #5, Attempt #1.
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium "...">
+[Subagent] Worker completed. BUNDLE (RUN #5) appended. Bundle: run-0005__task-1.4__ref-R4__20260219T141125Z. New: CorrelationMatrixModule in egnn.py + guide_model.py integration.
+[Supervisor] bash run.sh → EXIT_CODE=0. C shape (4,10,10), symmetric=True, diagonal_ones=True.
+[Supervisor] RESULT: PASS. Toggled [x]. EVIDENCE (RUN #5) 85b0530. R4 passes=true. runs.log RUN#5.
+================================================================================

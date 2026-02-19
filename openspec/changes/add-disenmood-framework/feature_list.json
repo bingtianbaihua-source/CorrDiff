@@ -28,7 +28,7 @@
       "task": "1.4",
       "description": "Correlation matrix module from molecule/pocket graphs with gated branch interaction (models/egnn.py, models/guide_model.py)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R5",
