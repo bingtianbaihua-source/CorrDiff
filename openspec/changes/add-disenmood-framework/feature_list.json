@@ -49,7 +49,7 @@
       "task": "1.7",
       "description": "Expert predictor R2 evaluation during training (scripts/train_diffusion_joint.py, models/molopt_score_model.py)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R8",

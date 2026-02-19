@@ -275,3 +275,37 @@ Validation steps:
 [Supervisor] bash run.sh → EXIT_CODE=0. 8 Pareto solutions verified.
 [Supervisor] RESULT: PASS. [x] toggled. EVIDENCE (RUN #7) e4445b2. R6 passes=true. runs.log RUN#7.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T15:30:00Z     Run: #8     Attempt: 1
+Change: add-disenmood-framework           Task: 1.7   Ref: R7
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: c4e2a40 "[openspec] task-1.7 R7 PASS: ExpertPredictorEvaluator R2 during training"
+- Diffstat: 13 files changed, 695 insertions(+), 2 deletions(-)
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #8) under task 1.7 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z/
+- feature_list.json: entry ref=="R7" passes changed false→true
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#8 appended
+
+Validation steps:
+  CMD: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash run-0008__task-1.7__ref-R7__20260219T150628Z/run.sh
+  EXIT_CODE: 0
+  expert_r2.json: 10 keys, logP=0.984, affinity=0.988, QED=0.985, SA=0.991, lipinski=0.985; PAMPA_NCATS/BBB_Martins/Clearance_Microsome_AZ/hERG/AMES="N/A"
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.7, RUN #8, Attempt #1.
+[Tool Use] <task - spawn subagent>
+[Tool Use] <bash - codex exec ...>
+[Subagent] BUNDLE (RUN #8). ExpertPredictor/ExpertPredictorEvaluator in molopt_score_model.py + R2 logging in train_diffusion_joint.py.
+[Supervisor] EXIT_CODE=0. 10 keys verified (5 float, 5 N/A).
+[Supervisor] RESULT: PASS. [x]. c4e2a40. R7 passes=true. runs.log RUN#8.
+================================================================================
