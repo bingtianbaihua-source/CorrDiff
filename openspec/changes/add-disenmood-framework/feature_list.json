@@ -14,7 +14,7 @@
       "task": "1.2",
       "description": "Disentangled VAE with z_shared and {z_pi} losses (models/egnn.py, models/guide_model.py)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R3",
