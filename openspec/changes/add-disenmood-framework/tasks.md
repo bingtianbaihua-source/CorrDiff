@@ -27,7 +27,7 @@
   BUNDLE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0003__task-1.2__ref-R2__20260219T125411Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 0935c5a | COMMIT_MSG: "[openspec] task-1.2 R2 PASS: DisentangledVAE (z_shared + z_pi) with tc_loss/mi_loss" | DIFFSTAT: 12 files changed, 612 insertions(+), 3 deletions(-)
 
-- [ ] 1.3 Implement backbone-branch latent diffusion for z_shared and z_pi (models/molopt_score_model.py) [#R3]
+- [x] 1.3 Implement backbone-branch latent diffusion for z_shared and z_pi (models/molopt_score_model.py) [#R3]
   - ACCEPT: 主干与各分支可独立前向/反向扩散（`models/molopt_score_model.py`），采样输出完整潜在集合。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -36,6 +36,8 @@
     - Inputs: inputs/diffusion_config.json
       Outputs: outputs/sample_latents.npz
     - Verify: 输出包含 z_shared 与所有 z_pi，且维度与配置一致
+  BUNDLE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0004__task-1.3__ref-R3__20260219T134302Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0004__task-1.3__ref-R3__20260219T134302Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0004__task-1.3__ref-R3__20260219T134302Z/logs/worker_startup.txt | VALIDATED_CLI: BUNDLE_DIR=<run-folder> OMP_NUM_THREADS=1 KMP_USE_SHM=0 PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff python3 runner.py | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: (pending) | COMMIT_MSG: (pending) | DIFFSTAT: (pending)
 
 - [ ] 1.4 Implement correlation matrix module from molecule/pocket graphs with gated branch interaction (models/egnn.py, models/guide_model.py) [#R4]
   - ACCEPT: 相关性矩阵 C 由分子图/口袋图预测（`models/egnn.py` / `models/guide_model.py`），并用于分支交互掩码控制。

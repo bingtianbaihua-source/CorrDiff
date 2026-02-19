@@ -1,0 +1,7 @@
+{
+  "z_shared_dim": 12,
+  "z_pi_dim": 7,
+  "property_names": ["qed", "sa", "logp", "affinity"],
+  "num_steps": 12,
+  "batch_size": 4
+}

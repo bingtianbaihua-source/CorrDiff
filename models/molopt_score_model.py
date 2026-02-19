@@ -1191,3 +1191,179 @@ def extract(coef, t, batch):
     return out.unsqueeze(-1)
 
 # %%
+
+
+class _LatentScoreMLP(nn.Module):
+    def __init__(
+        self,
+        latent_dim: int,
+        *,
+        time_emb_dim: int = 64,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+    ):
+        super().__init__()
+        if latent_dim <= 0:
+            raise ValueError(f"latent_dim must be > 0, got {latent_dim}")
+        if time_emb_dim <= 0:
+            raise ValueError(f"time_emb_dim must be > 0, got {time_emb_dim}")
+        if hidden_dim <= 0:
+            raise ValueError(f"hidden_dim must be > 0, got {hidden_dim}")
+        if num_layers < 1:
+            raise ValueError(f"num_layers must be >= 1, got {num_layers}")
+
+        self.latent_dim = int(latent_dim)
+        self.time_emb_dim = int(time_emb_dim)
+
+        self.time_mlp = nn.Sequential(
+            SinusoidalPosEmb(self.time_emb_dim),
+            nn.Linear(self.time_emb_dim, self.time_emb_dim * 4),
+            nn.SiLU(),
+            nn.Linear(self.time_emb_dim * 4, self.time_emb_dim),
+        )
+
+        layers = []
+        in_dim = self.latent_dim + self.time_emb_dim
+        for _ in range(num_layers - 1):
+            layers.append(nn.Linear(in_dim, hidden_dim))
+            layers.append(nn.SiLU())
+            in_dim = hidden_dim
+        layers.append(nn.Linear(in_dim, self.latent_dim))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        if x.dim() != 2 or x.size(-1) != self.latent_dim:
+            raise ValueError(
+                f"Expected x shape [batch, {self.latent_dim}], got {tuple(x.shape)}"
+            )
+        if t.dim() != 1 or t.size(0) != x.size(0):
+            raise ValueError(f"Expected t shape [batch], got {tuple(t.shape)}")
+
+        t_emb = self.time_mlp(t.float())
+        h = torch.cat([x, t_emb], dim=-1)
+        return self.net(h)
+
+
+class BranchDiffusion(nn.Module):
+    """
+    Standalone backbone-branch latent diffusion module.
+
+    - Backbone score net models z_shared.
+    - One branch score net per property models z_pi[name].
+
+    This module is intentionally self-contained: it does not integrate with the
+    main 3D diffusion training loop in this file.
+    """
+
+    def __init__(
+        self,
+        *,
+        z_shared_dim: int,
+        z_pi_dim: int,
+        property_names,
+        num_steps: int = 50,
+        time_emb_dim: int = 64,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+        sigma_min: float = 0.01,
+        sigma_max: float = 1.0,
+        device=None,
+        dtype=None,
+    ):
+        super().__init__()
+        if num_steps < 1:
+            raise ValueError(f"num_steps must be >= 1, got {num_steps}")
+        if sigma_min <= 0 or sigma_max <= 0 or sigma_min > sigma_max:
+            raise ValueError(
+                f"Expected 0 < sigma_min <= sigma_max, got sigma_min={sigma_min}, sigma_max={sigma_max}"
+            )
+
+        self.z_shared_dim = int(z_shared_dim)
+        self.z_pi_dim = int(z_pi_dim)
+        self.property_names = [str(n) for n in property_names]
+        self.num_steps = int(num_steps)
+
+        self.backbone = _LatentScoreMLP(
+            self.z_shared_dim,
+            time_emb_dim=time_emb_dim,
+            hidden_dim=hidden_dim,
+            num_layers=num_layers,
+        )
+        self.branches = nn.ModuleDict(
+            {
+                name: _LatentScoreMLP(
+                    self.z_pi_dim,
+                    time_emb_dim=time_emb_dim,
+                    hidden_dim=hidden_dim,
+                    num_layers=num_layers,
+                )
+                for name in self.property_names
+            }
+        )
+
+        sigmas = torch.linspace(float(sigma_max), float(sigma_min), self.num_steps)
+        self.register_buffer("sigmas", sigmas)
+
+        if device is not None or dtype is not None:
+            self.to(device=device, dtype=dtype)
+
+    def _sigma_at(self, t: torch.Tensor) -> torch.Tensor:
+        sigma = self.sigmas[t]
+        return sigma.view(-1, 1)
+
+    def forward_diffuse(self, x0: torch.Tensor, t: torch.Tensor, *, noise=None) -> torch.Tensor:
+        if noise is None:
+            noise = torch.randn_like(x0)
+        sigma = self._sigma_at(t)
+        return x0 + sigma * noise
+
+    def reverse_step(self, x_t: torch.Tensor, t: torch.Tensor, *, net: nn.Module) -> torch.Tensor:
+        sigma = self._sigma_at(t)
+        score = net(x_t, t)
+        noise = torch.zeros_like(x_t)
+        if int(t.max().item()) > 0:
+            noise = torch.randn_like(x_t) * sigma
+        return x_t - score * sigma + noise
+
+    def reverse_diffuse(self, x_T: torch.Tensor, *, net: nn.Module) -> torch.Tensor:
+        x = x_T
+        batch = x.size(0)
+        device = x.device
+        for step in reversed(range(self.num_steps)):
+            t = torch.full((batch,), step, device=device, dtype=torch.long)
+            x = self.reverse_step(x, t, net=net)
+        return x
+
+    def forward_diffuse_shared(self, z_shared_0: torch.Tensor, t: torch.Tensor, *, noise=None) -> torch.Tensor:
+        return self.forward_diffuse(z_shared_0, t, noise=noise)
+
+    def forward_diffuse_pi(self, name: str, z_pi_0: torch.Tensor, t: torch.Tensor, *, noise=None) -> torch.Tensor:
+        if name not in self.branches:
+            raise KeyError(f"Unknown branch '{name}'. Known: {list(self.branches.keys())}")
+        return self.forward_diffuse(z_pi_0, t, noise=noise)
+
+    def reverse_diffuse_shared(self, z_shared_T: torch.Tensor) -> torch.Tensor:
+        return self.reverse_diffuse(z_shared_T, net=self.backbone)
+
+    def reverse_diffuse_pi(self, name: str, z_pi_T: torch.Tensor) -> torch.Tensor:
+        if name not in self.branches:
+            raise KeyError(f"Unknown branch '{name}'. Known: {list(self.branches.keys())}")
+        return self.reverse_diffuse(z_pi_T, net=self.branches[name])
+
+    @torch.no_grad()
+    def sample(self, *, batch_size: int, device=None) -> dict:
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {batch_size}")
+
+        if device is None:
+            device = self.sigmas.device
+
+        z_shared_T = torch.randn(batch_size, self.z_shared_dim, device=device)
+        z_shared = self.reverse_diffuse_shared(z_shared_T)
+
+        z_pi = {}
+        for name in self.property_names:
+            z_pi_T = torch.randn(batch_size, self.z_pi_dim, device=device)
+            z_pi[name] = self.reverse_diffuse_pi(name, z_pi_T)
+
+        return {"z_shared": z_shared, "z_pi": z_pi}

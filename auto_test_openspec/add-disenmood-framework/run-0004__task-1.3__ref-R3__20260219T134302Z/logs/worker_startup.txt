@@ -1,0 +1,16 @@
+UTC_TIMESTAMP: 2026-02-19T13:43:02Z
+CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium
+GIT_BASE: f6de830
+
+git log --oneline -20 (excerpt):
+f6de830 [openspec] task-1.2 R2 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+0935c5a [openspec] task-1.2 R2 PASS: DisentangledVAE (z_shared + z_pi) with tc_loss/mi_loss
+5dc60bd [openspec] task-1.1 R1 bookkeeping: finalize RUN#2 DONE evidence + runs.log
+3f09452 首次提交
+40d1306 首次提交
+
+What I observed:
+- openspec/changes/add-disenmood-framework/feature_list.json includes ref "R3" for task 1.3 with passes=false.
+- openspec/changes/add-disenmood-framework/progress.txt contains prior runs (#1-#3) and notes the BUNDLE_DIR fix for heredoc path resolution.
+- Current HEAD is f6de830; task 1.3 is currently unchecked in openspec/changes/add-disenmood-framework/tasks.md.
+
