@@ -24,13 +24,50 @@ import utils.transforms as trans
 
 from datasets import get_dataset
 from datasets.pl_data import FOLLOW_BATCH
-from models.molopt_score_model import ScorePosNet3D_Multi
+from models.molopt_score_model import MINIMAL_PROPERTY_SET, ScorePosNet3D_Multi, compute_r2
 
 
 def get_pearsonr(y_true, y_pred):
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
     return stats.pearsonr(y_true, y_pred)
+
+def _compute_expert_r2_from_batch(*, batch, results) -> dict:
+    r2: dict = {k: "N/A" for k in MINIMAL_PROPERTY_SET}
+
+    mapping = {
+        "affinity": ("affinity", "pred_exp"),
+        "QED": ("qed", "pred_qed"),
+        "SA": ("sa", "pred_sa"),
+        "lipinski": ("lipinski", "pred_lipinski"),
+        "logP": ("logp", "pred_logp"),
+    }
+    for prop, (true_attr, pred_key) in mapping.items():
+        if not hasattr(batch, true_attr):
+            continue
+        if pred_key not in results:
+            continue
+        y_true = getattr(batch, true_attr)
+        y_pred = results[pred_key]
+        try:
+            v = compute_r2(y_true, y_pred)
+        except Exception:
+            v = None
+        r2[prop] = "N/A" if v is None else float(v)
+
+    return r2
+
+
+def _format_expert_r2(r2: dict) -> str:
+    parts = []
+    for k in MINIMAL_PROPERTY_SET:
+        v = r2.get(k, "N/A")
+        if isinstance(v, (float, int, np.floating, np.integer)):
+            parts.append(f"{k}={float(v):.4f}")
+        else:
+            parts.append(f"{k}=N/A")
+    return "{" + ", ".join(parts) + "}"
+
 
 def main():
     
@@ -158,8 +195,11 @@ def main():
     def train(it):
         model.train()
         optimizer.zero_grad()
+        last_batch = None
+        last_results = None
         for _ in range(config.train.n_acc_batch):
             batch = next(train_iterator).to(args.device)
+            last_batch = batch
 
             protein_noise = torch.randn_like(batch.protein_pos) * config.train.pos_noise_std
             gt_protein_pos = batch.protein_pos + protein_noise
@@ -178,6 +218,7 @@ def main():
                 ligand_v=batch.ligand_atom_feature_full,
                 batch_ligand=batch.ligand_element_batch
             )
+            last_results = results
             if args.value_only:
                 results['loss'] = results['loss_exp']
                 
@@ -188,14 +229,23 @@ def main():
         optimizer.step()
 
         if it % args.train_report_iter == 0:
+            expert_r2 = (
+                _compute_expert_r2_from_batch(batch=last_batch, results=last_results)
+                if last_batch is not None and last_results is not None
+                else {k: "N/A" for k in MINIMAL_PROPERTY_SET}
+            )
             logger.info(
                 '[Train] Iter %d | Loss %.6f (pos %.6f | v %.6f | exp %.6f | sa %.6f | qed %.6f | lipinski %.6f | logp %.6f) | Lr: %.6f | Grad Norm: %.6f' % (
                     it, loss, loss_pos, loss_v, loss_exp, loss_sa, loss_qed, loss_lipinski, loss_logp, optimizer.param_groups[0]['lr'], orig_grad_norm
                 )
             )
+            logger.info('[Train] Expert R2 %s' % _format_expert_r2(expert_r2))
             for k, v in results.items():
                 if torch.is_tensor(v) and v.squeeze().ndim == 0:
                     writer.add_scalar(f'train/{k}', v, it)
+            for prop, v in expert_r2.items():
+                if isinstance(v, (float, int, np.floating, np.integer)):
+                    writer.add_scalar(f"train/r2_{prop}", float(v), it)
             writer.add_scalar('train/lr', optimizer.param_groups[0]['lr'], it)
             writer.add_scalar('train/grad', orig_grad_norm, it)
             writer.flush()
@@ -271,6 +321,23 @@ def main():
         qed_pearsonr = get_pearsonr(np.concatenate(all_true_qed, axis=0), np.concatenate(all_pred_qed, axis=0))
         lipinski_pearsonr = get_pearsonr(np.concatenate(all_true_lipinski, axis=0), np.concatenate(all_pred_lipinski, axis=0))
         logp_pearsonr = get_pearsonr(np.concatenate(all_true_logp, axis=0), np.concatenate(all_pred_logp, axis=0))
+
+        expert_r2 = {k: "N/A" for k in MINIMAL_PROPERTY_SET}
+        if len(all_true_exp) > 0:
+            v = compute_r2(np.concatenate(all_true_exp, axis=0), np.concatenate(all_pred_exp, axis=0))
+            expert_r2["affinity"] = "N/A" if v is None else float(v)
+        if len(all_true_sa) > 0:
+            v = compute_r2(np.concatenate(all_true_sa, axis=0), np.concatenate(all_pred_sa, axis=0))
+            expert_r2["SA"] = "N/A" if v is None else float(v)
+        if len(all_true_qed) > 0:
+            v = compute_r2(np.concatenate(all_true_qed, axis=0), np.concatenate(all_pred_qed, axis=0))
+            expert_r2["QED"] = "N/A" if v is None else float(v)
+        if len(all_true_lipinski) > 0:
+            v = compute_r2(np.concatenate(all_true_lipinski, axis=0), np.concatenate(all_pred_lipinski, axis=0))
+            expert_r2["lipinski"] = "N/A" if v is None else float(v)
+        if len(all_true_logp) > 0:
+            v = compute_r2(np.concatenate(all_true_logp, axis=0), np.concatenate(all_pred_logp, axis=0))
+            expert_r2["logP"] = "N/A" if v is None else float(v)
         
         
         if config.train.scheduler.type == 'plateau':
@@ -285,6 +352,7 @@ def main():
                 it, avg_loss, avg_loss_pos, avg_loss_v * 1000, avg_loss_exp * 1000, avg_loss_sa * 1000, avg_loss_qed * 1000, avg_loss_lipinski * 1000, avg_loss_logp * 1000, atom_auroc
             )
         )
+        logger.info('[Validate] Expert R2 %s' % _format_expert_r2(expert_r2))
         writer.add_scalar('val/loss', avg_loss, it)
         writer.add_scalar('val/loss_pos', avg_loss_pos, it)
         writer.add_scalar('val/loss_v', avg_loss_v, it)
@@ -305,6 +373,9 @@ def main():
         writer.add_scalar('val/pvalue_lipinski', lipinski_pearsonr[1], it)
         writer.add_scalar('val/pcc_logp', logp_pearsonr[0], it)
         writer.add_scalar('val/pvalue_logp', logp_pearsonr[1], it)
+        for prop, v in expert_r2.items():
+            if isinstance(v, (float, int, np.floating, np.integer)):
+                writer.add_scalar(f"val/r2_{prop}", float(v), it)
         # fig = plt.figure(figsize=(12,12))
         
         writer.add_figure('val/pcc_affinity_fig', sns.lmplot(data=pd.DataFrame({

@@ -1193,6 +1193,143 @@ def extract(coef, t, batch):
 # %%
 
 
+MINIMAL_PROPERTY_SET = (
+    "PAMPA_NCATS",
+    "BBB_Martins",
+    "logP",
+    "Clearance_Microsome_AZ",
+    "hERG",
+    "affinity",
+    "QED",
+    "SA",
+    "AMES",
+    "lipinski",
+)
+
+
+def compute_r2(y_true, y_pred):
+    """
+    Compute R^2 = 1 - SS_res / SS_tot.
+
+    Returns:
+      float if defined, otherwise None (e.g. <2 valid points or zero variance).
+    """
+    if not torch.is_tensor(y_true):
+        y_true = torch.as_tensor(y_true)
+    if not torch.is_tensor(y_pred):
+        y_pred = torch.as_tensor(y_pred)
+
+    y_true = y_true.detach().to(dtype=torch.float32).view(-1)
+    y_pred = y_pred.detach().to(dtype=torch.float32).view(-1)
+    if y_true.numel() != y_pred.numel():
+        raise ValueError(f"y_true and y_pred must have same length, got {y_true.numel()} vs {y_pred.numel()}")
+
+    valid = torch.isfinite(y_true) & torch.isfinite(y_pred)
+    y_true = y_true[valid]
+    y_pred = y_pred[valid]
+    if y_true.numel() < 2:
+        return None
+
+    y_mean = y_true.mean()
+    ss_res = torch.sum((y_true - y_pred) ** 2)
+    ss_tot = torch.sum((y_true - y_mean) ** 2)
+    if float(ss_tot) <= 0.0:
+        return None
+    r2 = 1.0 - (ss_res / ss_tot)
+    return float(r2)
+
+
+class ExpertPredictor(nn.Module):
+    """
+    Small per-property MLP: z_pi[name] -> predicted property value.
+    """
+
+    def __init__(self, z_dim: int, *, hidden_dim: int = 128, num_layers: int = 2):
+        super().__init__()
+        if z_dim <= 0:
+            raise ValueError(f"z_dim must be > 0, got {z_dim}")
+        if hidden_dim <= 0:
+            raise ValueError(f"hidden_dim must be > 0, got {hidden_dim}")
+        if num_layers < 1:
+            raise ValueError(f"num_layers must be >= 1, got {num_layers}")
+
+        layers = []
+        in_dim = int(z_dim)
+        for _ in range(int(num_layers) - 1):
+            layers.append(nn.Linear(in_dim, int(hidden_dim)))
+            layers.append(nn.SiLU())
+            in_dim = int(hidden_dim)
+        layers.append(nn.Linear(in_dim, 1))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, z_pi: torch.Tensor) -> torch.Tensor:
+        if z_pi.dim() != 2:
+            raise ValueError(f"Expected z_pi shape [batch, dim], got {tuple(z_pi.shape)}")
+        return self.net(z_pi).squeeze(-1)
+
+
+class ExpertPredictorEvaluator(nn.Module):
+    """
+    Evaluates property expert predictors with R2.
+
+    Missing labels or missing predictors are reported as "N/A".
+    """
+
+    def __init__(self, predictors: dict, *, property_names=MINIMAL_PROPERTY_SET):
+        super().__init__()
+        self.property_names = [str(n) for n in property_names]
+        self.predictors = nn.ModuleDict({str(k): v for k, v in (predictors or {}).items()})
+
+    @classmethod
+    def build_default(
+        cls,
+        *,
+        z_pi_dim: int,
+        property_names=MINIMAL_PROPERTY_SET,
+        hidden_dim: int = 128,
+        num_layers: int = 2,
+        device=None,
+        dtype=None,
+    ):
+        predictors = {
+            str(name): ExpertPredictor(z_pi_dim, hidden_dim=hidden_dim, num_layers=num_layers)
+            for name in property_names
+        }
+        inst = cls(predictors, property_names=property_names)
+        if device is not None or dtype is not None:
+            inst.to(device=device, dtype=dtype)
+        return inst
+
+    def evaluate(self, z_pi_dict: dict, true_labels_dict: dict) -> dict:
+        if not isinstance(z_pi_dict, dict):
+            raise TypeError("z_pi_dict must be a dict {property: tensor}")
+        if true_labels_dict is None:
+            true_labels_dict = {}
+        if not isinstance(true_labels_dict, dict):
+            raise TypeError("true_labels_dict must be a dict {property: tensor}")
+
+        out: dict = {}
+        for name in self.property_names:
+            if name not in true_labels_dict:
+                out[name] = "N/A"
+                continue
+            if name not in z_pi_dict:
+                out[name] = "N/A"
+                continue
+            if name not in self.predictors:
+                out[name] = "N/A"
+                continue
+
+            y_true = true_labels_dict.get(name, None)
+            if y_true is None:
+                out[name] = "N/A"
+                continue
+            y_pred = self.predictors[name](z_pi_dict[name])
+            r2 = compute_r2(y_true, y_pred)
+            out[name] = "N/A" if r2 is None else r2
+        return out
+
+
 class _LatentScoreMLP(nn.Module):
     def __init__(
         self,

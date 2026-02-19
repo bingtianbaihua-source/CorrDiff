@@ -75,7 +75,7 @@
   BUNDLE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0007__task-1.6__ref-R6__20260219T145204Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0007__task-1.6__ref-R6__20260219T145204Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0007__task-1.6__ref-R6__20260219T145204Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0007__task-1.6__ref-R6__20260219T145204Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: e4445b2 | COMMIT_MSG: "[openspec] task-1.6 R6 PASS: CorrelationAwareMOGuidance with Pareto selection" | DIFFSTAT: 11 files changed, 661 insertions(+), 1 deletion(-)
 
-- [ ] 1.7 Add expert predictor evaluation (R2) during training (scripts/train_diffusion_joint.py, models/molopt_score_model.py) [#R7]
+- [x] 1.7 Add expert predictor evaluation (R2) during training (scripts/train_diffusion_joint.py, models/molopt_score_model.py) [#R7]
   - ACCEPT: 训练过程中除 loss 外输出各属性专家网络的 R2 指标（记录在 `scripts/train_diffusion_joint.py` 的训练/验证日志中）。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -84,6 +84,8 @@
     - Inputs: inputs/mini_batch.pt
       Outputs: outputs/expert_r2.json
     - Verify: 输出包含最小属性集合的 R2，缺失属性标记为 N/A
+  BUNDLE (RUN #8): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #8): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: (pending) | COMMIT_MSG: (pending) | DIFFSTAT: (pending)
 
 - [ ] 1.8 Add evaluation pipeline for HV/Sparsity, correlation error, intervention, docking (scripts/sample_diffusion_multi_for_pocket.py or new eval script) [#R8]
   - ACCEPT: 评估脚本可在 CrossDocked2020（或其 toy 子集）上输出 HV、Sparsity、相关性误差、解耦干预与对接评分。
