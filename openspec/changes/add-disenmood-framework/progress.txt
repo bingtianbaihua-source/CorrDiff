@@ -207,3 +207,37 @@ Changes verified:
 [Supervisor] bash run.sh → EXIT_CODE=0. C shape (4,10,10), symmetric=True, diagonal_ones=True.
 [Supervisor] RESULT: PASS. Toggled [x]. EVIDENCE (RUN #5) 85b0530. R4 passes=true. runs.log RUN#5.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T14:50:00Z     Run: #6     Attempt: 1
+Change: add-disenmood-framework           Task: 1.5   Ref: R5
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 63bdd87 "[openspec] task-1.5 R5 PASS: GuidedBranchSampler training-free energy guidance"
+- Diffstat: 14 files changed, 625 insertions(+), 6 deletions(-)
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #6) under task 1.5 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0006__task-1.5__ref-R5__20260219T143741Z/
+- feature_list.json: entry ref=="R5" passes changed false→true
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#6 appended
+
+Validation steps:
+  CMD: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash run-0006__task-1.5__ref-R5__20260219T143741Z/run.sh
+  EXIT_CODE: 0
+  guidance_stats.json: target_changed=True, frozen_unchanged=True, max_frozen_delta=0.0, min_target_delta=0.796
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.5, RUN #6, Attempt #1.
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec ... "...">
+[Subagent] Worker completed. BUNDLE (RUN #6). Bundle: run-0006__task-1.5__ref-R5__20260219T143741Z.
+[Supervisor] bash run.sh → EXIT_CODE=0. Stats verified.
+[Supervisor] RESULT: PASS. [x] toggled. EVIDENCE (RUN #6) 63bdd87. R5 passes=true. runs.log RUN#6.
+================================================================================

@@ -35,7 +35,7 @@
       "task": "1.5",
       "description": "Training-free energy guidance with branch-local gradients and freezing (models/guide_model.py, models/molopt_score_model.py)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R6",
