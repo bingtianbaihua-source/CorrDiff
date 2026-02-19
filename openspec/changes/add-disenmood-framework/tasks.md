@@ -88,6 +88,8 @@
   EVIDENCE (RUN #8): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0008__task-1.7__ref-R7__20260219T150628Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: c4e2a40 | COMMIT_MSG: "[openspec] task-1.7 R7 PASS: ExpertPredictorEvaluator R2 during training" | DIFFSTAT: 13 files changed, 695 insertions(+), 2 deletions(-)
 
 - [ ] 1.8 Add evaluation pipeline for HV/Sparsity, correlation error, intervention, docking (scripts/sample_diffusion_multi_for_pocket.py or new eval script) [#R8]
+  BLOCKED (RUN #9, Attempt #1): codex exec denied by subagent sandbox before any invocation — no files created, no BUNDLE produced.
+  NEEDS: Re-run in a session where Bash tool is permitted to call `codex exec`. This is the only remaining unchecked task.
   - ACCEPT: 评估脚本可在 CrossDocked2020（或其 toy 子集）上输出 HV、Sparsity、相关性误差、解耦干预与对接评分。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:

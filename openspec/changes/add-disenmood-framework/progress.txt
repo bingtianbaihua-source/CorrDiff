@@ -309,3 +309,27 @@ Validation steps:
 [Supervisor] EXIT_CODE=0. 10 keys verified (5 float, 5 N/A).
 [Supervisor] RESULT: PASS. [x]. c4e2a40. R7 passes=true. runs.log RUN#8.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T15:50:00Z     Run: #9     Attempt: 1
+Change: add-disenmood-framework           Task: 1.8   Ref: R8
+
+Status: BLOCKED
+
+Git anchors (this RUN):
+- (Not PASS) No checkpoint commit.
+
+Evidence pointers:
+- tasks.md: BLOCKED (RUN #9, Attempt #1) note under task 1.8
+- No VALIDATION_BUNDLE created (codex exec denied before invocation)
+
+Blocker:
+  The subagent's Bash tool call for `codex exec` was denied by the sandbox permission layer.
+  No files were created. No BUNDLE line produced.
+  Next action: Re-run /monitor-openspec-codex openspec/changes/add-disenmood-framework in a session where the Bash tool can execute `codex exec`.
+
+Session ended early due to user /exit command after recording this BLOCKED state.
+================================================================================
