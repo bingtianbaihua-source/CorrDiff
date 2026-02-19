@@ -42,7 +42,7 @@
       "task": "1.6",
       "description": "Correlation-aware multi-objective guidance and Pareto selection (models/molopt_score_model.py)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R7",

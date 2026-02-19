@@ -241,3 +241,37 @@ Validation steps:
 [Supervisor] bash run.sh → EXIT_CODE=0. Stats verified.
 [Supervisor] RESULT: PASS. [x] toggled. EVIDENCE (RUN #6) 63bdd87. R5 passes=true. runs.log RUN#6.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T15:10:00Z     Run: #7     Attempt: 1
+Change: add-disenmood-framework           Task: 1.6   Ref: R6
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: e4445b2 "[openspec] task-1.6 R6 PASS: CorrelationAwareMOGuidance with Pareto selection"
+- Diffstat: 11 files changed, 661 insertions(+), 1 deletion(-)
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #7) under task 1.6 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0007__task-1.6__ref-R6__20260219T145204Z/
+- feature_list.json: entry ref=="R6" passes changed false→true
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#7 appended
+
+Validation steps:
+  CMD: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash run-0007__task-1.6__ref-R6__20260219T145204Z/run.sh
+  EXIT_CODE: 0
+  pareto_set.json: 8 non-dominated solutions, objectives=[qed,sa,logp,affinity]
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.6, RUN #7, Attempt #1.
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec ...>
+[Subagent] Worker completed. BUNDLE (RUN #7). is_pareto_optimal() + CorrelationAwareMOGuidance in molopt_score_model.py.
+[Supervisor] bash run.sh → EXIT_CODE=0. 8 Pareto solutions verified.
+[Supervisor] RESULT: PASS. [x] toggled. EVIDENCE (RUN #7) e4445b2. R6 passes=true. runs.log RUN#7.
+================================================================================
