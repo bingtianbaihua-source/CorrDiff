@@ -51,7 +51,7 @@
   BUNDLE (RUN #5): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #5): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0005__task-1.4__ref-R4__20260219T141125Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 85b0530 | COMMIT_MSG: "[openspec] task-1.4 R4 PASS: CorrelationMatrixModule with gated branch interaction" | DIFFSTAT: 17 files changed, 500 insertions(+), 7 deletions(-)
 
-- [ ] 1.5 Implement training-free energy guidance with branch-local gradients and freezing (models/guide_model.py, models/molopt_score_model.py) [#R5]
+- [x] 1.5 Implement training-free energy guidance with branch-local gradients and freezing (models/guide_model.py, models/molopt_score_model.py) [#R5]
   - ACCEPT: 指定目标属性时仅对应分支被引导（`models/guide_model.py`/`models/molopt_score_model.py`），冻结属性不被更新。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -60,6 +60,8 @@
     - Inputs: inputs/guidance_targets.json
       Outputs: outputs/guided_latents.npz
     - Verify: 目标分支变化显著，冻结分支在采样步内保持不变（容差内）
+  BUNDLE (RUN #6): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0006__task-1.5__ref-R5__20260219T143741Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #6): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0006__task-1.5__ref-R5__20260219T143741Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0006__task-1.5__ref-R5__20260219T143741Z/logs/worker_startup.txt | VALIDATED_CLI: PYTHONPATH=/Users/mac/Downloads/code/project/CorrDiff bash auto_test_openspec/add-disenmood-framework/run-0006__task-1.5__ref-R5__20260219T143741Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: (pending) | COMMIT_MSG: (pending) | DIFFSTAT: (pending)
 
 - [ ] 1.6 Implement correlation-aware multi-objective guidance and Pareto selection (models/molopt_score_model.py) [#R6]
   - ACCEPT: 高相关目标合并引导，低相关/冲突目标分离引导并输出帕累托候选（`models/molopt_score_model.py`）。

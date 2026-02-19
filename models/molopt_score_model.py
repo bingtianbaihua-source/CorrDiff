@@ -1350,20 +1350,100 @@ class BranchDiffusion(nn.Module):
             raise KeyError(f"Unknown branch '{name}'. Known: {list(self.branches.keys())}")
         return self.reverse_diffuse(z_pi_T, net=self.branches[name])
 
-    @torch.no_grad()
-    def sample(self, *, batch_size: int, device=None) -> dict:
+    @staticmethod
+    def _as_set(values):
+        if values is None:
+            return set()
+        return {str(v) for v in values}
+
+    @staticmethod
+    def _energy_to_scalar(energy: torch.Tensor) -> torch.Tensor:
+        if not torch.is_tensor(energy):
+            raise TypeError("energy_fn must return a torch.Tensor")
+        if energy.numel() == 1:
+            return energy
+        return energy.sum()
+
+    def _apply_energy_guidance(self, x: torch.Tensor, *, energy_fn, step_size: float) -> torch.Tensor:
+        if step_size <= 0:
+            return x
+        with torch.enable_grad():
+            x_var = x.detach().requires_grad_(True)
+            energy = self._energy_to_scalar(energy_fn(x_var))
+            (grad,) = torch.autograd.grad(energy, x_var, retain_graph=False, create_graph=False)
+            x_next = x_var - float(step_size) * grad
+        return x_next.detach()
+
+    def reverse_diffuse_pi_guided(
+        self,
+        name: str,
+        z_pi_T: torch.Tensor,
+        *,
+        energy_fn=None,
+        guidance_step_size: float = 0.0,
+        apply_guidance: bool = False,
+    ) -> torch.Tensor:
+        if name not in self.branches:
+            raise KeyError(f"Unknown branch '{name}'. Known: {list(self.branches.keys())}")
+
+        x = z_pi_T
+        batch = x.size(0)
+        device = x.device
+
+        for step in reversed(range(self.num_steps)):
+            t = torch.full((batch,), step, device=device, dtype=torch.long)
+            with torch.no_grad():
+                x = self.reverse_step(x, t, net=self.branches[name])
+            if apply_guidance:
+                if energy_fn is None:
+                    raise ValueError("energy_fn is required when apply_guidance=True")
+                x = self._apply_energy_guidance(x, energy_fn=energy_fn, step_size=guidance_step_size)
+        return x
+
+    def sample(
+        self,
+        *,
+        batch_size: int,
+        device=None,
+        target_properties=None,
+        frozen_properties=None,
+        energy_fn=None,
+        guidance_step_size: float = 0.0,
+    ) -> dict:
         if batch_size < 1:
             raise ValueError(f"batch_size must be >= 1, got {batch_size}")
 
         if device is None:
             device = self.sigmas.device
 
-        z_shared_T = torch.randn(batch_size, self.z_shared_dim, device=device)
-        z_shared = self.reverse_diffuse_shared(z_shared_T)
+        target_set = self._as_set(target_properties)
+        frozen_set = self._as_set(frozen_properties)
+        unknown = (target_set | frozen_set) - set(self.property_names)
+        if unknown:
+            raise KeyError(f"Unknown properties in target/frozen: {sorted(unknown)}")
+
+        with torch.no_grad():
+            z_shared_T = torch.randn(batch_size, self.z_shared_dim, device=device)
+            z_shared = self.reverse_diffuse_shared(z_shared_T)
 
         z_pi = {}
         for name in self.property_names:
             z_pi_T = torch.randn(batch_size, self.z_pi_dim, device=device)
-            z_pi[name] = self.reverse_diffuse_pi(name, z_pi_T)
+            if name in frozen_set:
+                z_pi[name] = z_pi_T
+                continue
+
+            apply_guidance = bool(target_set) and (name in target_set) and (name not in frozen_set)
+            if apply_guidance:
+                z_pi[name] = self.reverse_diffuse_pi_guided(
+                    name,
+                    z_pi_T,
+                    energy_fn=energy_fn,
+                    guidance_step_size=guidance_step_size,
+                    apply_guidance=True,
+                )
+            else:
+                with torch.no_grad():
+                    z_pi[name] = self.reverse_diffuse_pi(name, z_pi_T)
 
         return {"z_shared": z_shared, "z_pi": z_pi}

@@ -542,6 +542,88 @@ def _kl_std_normal(mu, logvar):
     return 0.5 * (torch.exp(logvar) + mu.pow(2) - 1.0 - logvar).sum(dim=-1)
 
 
+class GuidedBranchSampler:
+    """
+    Training-free energy guidance for per-property (branch) latents.
+
+    This utility is intentionally model-agnostic: it updates only the latents
+    provided in `z_pi_dict` using gradients of `energy_fn`.
+
+    - Only branches listed in `target_properties` are guided.
+    - Branches listed in `frozen_properties` are not updated (remain constant).
+    """
+
+    def __init__(self, *, step_size: float):
+        if step_size <= 0:
+            raise ValueError(f"step_size must be > 0, got {step_size}")
+        self.step_size = float(step_size)
+
+    @staticmethod
+    def _as_set(values):
+        if values is None:
+            return set()
+        return {str(v) for v in values}
+
+    @staticmethod
+    def _energy_to_scalar(energy: torch.Tensor) -> torch.Tensor:
+        if not torch.is_tensor(energy):
+            raise TypeError("energy_fn must return a torch.Tensor")
+        if energy.numel() == 1:
+            return energy
+        return energy.sum()
+
+    def run(
+        self,
+        *,
+        z_pi_dict: dict,
+        target_properties=None,
+        frozen_properties=None,
+        energy_fn=None,
+        num_steps: int = 1,
+    ) -> dict:
+        if not isinstance(z_pi_dict, dict) or len(z_pi_dict) == 0:
+            raise ValueError("z_pi_dict must be a non-empty dict of {property: tensor}")
+        if num_steps < 0:
+            raise ValueError(f"num_steps must be >= 0, got {num_steps}")
+
+        target_set = self._as_set(target_properties)
+        frozen_set = self._as_set(frozen_properties)
+
+        unknown = (target_set | frozen_set) - {str(k) for k in z_pi_dict.keys()}
+        if unknown:
+            raise KeyError(f"Unknown properties in target/frozen: {sorted(unknown)}")
+
+        if target_set and energy_fn is None:
+            raise ValueError("energy_fn is required when target_properties is non-empty")
+
+        z_initial = {k: v.detach().clone() for k, v in z_pi_dict.items()}
+        z_current = {k: v.detach().clone() for k, v in z_pi_dict.items()}
+
+        steps_log = []
+        for step_idx in range(int(num_steps)):
+            step_entry = {"step": step_idx, "guided": {}, "frozen": sorted(frozen_set)}
+            for k, z in z_current.items():
+                name = str(k)
+                if name in frozen_set:
+                    continue
+                if target_set and name not in target_set:
+                    continue
+
+                with torch.enable_grad():
+                    z_var = z.detach().requires_grad_(True)
+                    energy = self._energy_to_scalar(energy_fn(z_var))
+                    (grad,) = torch.autograd.grad(energy, z_var, retain_graph=False, create_graph=False)
+                    z_next = z_var - self.step_size * grad
+                z_current[name] = z_next.detach()
+                step_entry["guided"][name] = {
+                    "energy": float(energy.detach().cpu().item()),
+                    "mean_abs_grad": float(grad.detach().abs().mean().cpu().item()),
+                }
+            steps_log.append(step_entry)
+
+        return {"z_pi_initial": z_initial, "z_pi_guided": z_current, "steps_log": steps_log}
+
+
 class DisentangledVAE(nn.Module):
     """
     Disentangled VAE encoder producing:
