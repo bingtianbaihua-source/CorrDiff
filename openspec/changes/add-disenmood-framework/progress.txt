@@ -42,3 +42,43 @@ Retry decision: ATTEMPT 1 < MAX_ATTEMPTS 2 → retry with Attempt #2 (fresh suba
 [Supervisor] Ran bash run.sh → EXIT_CODE=1. Error: Path(__file__) in heredoc resolves to CWD. Output file correct; assertion script path wrong.
 [Supervisor] RESULT: FAIL. Wrote EVIDENCE (RUN #1, FAIL) + REVIEW + UNBLOCK GUIDANCE to tasks.md. Retrying as Attempt #2.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-19T12:20:00Z     Run: #2     Attempt: 2
+Change: add-disenmood-framework           Task: 1.1   Ref: R1
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 3f09452 "首次提交 (task-1.1 R1 PASS — scripts/augment_admet_labels.py + models/admet_model.py)"
+- Files: scripts/augment_admet_labels.py, models/admet_model.py, auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #2) under task 1.1 — RESULT: PASS
+- VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/logs/worker_startup.txt
+- feature_list.json: entry ref=="R1" passes confirmed true (Supervisor-confirmed)
+- git_openspec_history/add-disenmood-framework/runs.log: RUN#2 entry recorded
+
+Validation steps:
+  CMD: bash auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/run.sh
+  EXIT_CODE: 0
+  Output excerpt: augmented_labels.json verified — 3 SMILES x 10 properties, all required keys present.
+
+Changes verified:
+  - scripts/augment_admet_labels.py: offline ADMET augmentation script using ADMETModel.predict
+  - models/admet_model.py: ADMETModel for PAMPA_NCATS, BBB_Martins, logP, Clearance_Microsome_AZ, hERG, affinity, QED, SA, AMES, lipinski
+  - auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/: validation bundle
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+[Supervisor → Subagent] Dispatch Codex worker for task 1.1, RUN #2, Attempt #2 (fix Path resolution via BUNDLE_DIR env var).
+[Tool Use] <task - spawn subagent "codex-worker">
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium "...">
+[Subagent] Worker completed. BUNDLE (RUN #2) appended. Bundle folder: run-0002__task-1.1__ref-R1__20260219T121744Z.
+[Supervisor] Ran bash run.sh → EXIT_CODE=0. outputs/augmented_labels.json verified.
+[Supervisor] RESULT: PASS. Checkbox [x] toggled. feature_list.json R1 passes=true confirmed. Created runs.log. Updated EVIDENCE (RUN #2) with commit SHA 3f09452.
+================================================================================

@@ -1,0 +1,1 @@
+run#2 | commit=3f09452 | msg="首次提交 (checkpoint: task-1.1 R1 PASS)" | files=scripts/augment_admet_labels.py,models/admet_model.py,auto_test_openspec/add-disenmood-framework/run-0002__task-1.1__ref-R1__20260219T121744Z/
