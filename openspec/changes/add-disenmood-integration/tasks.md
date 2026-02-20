@@ -88,3 +88,4 @@
     - Inputs: inputs/decode_contract.json
       Outputs: outputs/decode_contract_check.txt
     - Verify: 合同文档包含必需/可选字段说明与重建入口函数名
+  BUNDLE (RUN #9): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0009__task-1.7__ref-R7__20260220T120000Z | HOW_TO_RUN: run.sh/run.bat

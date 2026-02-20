@@ -1,0 +1,17 @@
+DECODE_OUTPUT_CONTRACT_CHECK
+REPO_ROOT: /Users/mac/Downloads/code/project/CorrDiff
+
+REQUIRED:
+- xyz: CONFIRMED (decode return)
+- atomic_nums: CONFIRMED (decode return)
+
+OPTIONAL:
+- aromatic: OPTIONAL (contract)
+- atom_affinity: OPTIONAL (contract)
+
+RECONSTRUCTION_FN: utils.reconstruct.reconstruct_from_generated
+RECONSTRUCTION_SIG: reconstruct_from_generated(xyz, atomic_nums, aromatic, atom_affinity, basic_mode)
+RECONSTRUCTION_REQUIRED_ARGS_OK: True
+RECONSTRUCTION_OPTIONAL_ARGS_PRESENT: True
+
+COMPATIBILITY: PASS

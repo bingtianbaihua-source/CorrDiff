@@ -1,0 +1,5 @@
+{
+  "required": ["xyz", "atomic_nums"],
+  "optional": ["aromatic", "atom_affinity"],
+  "reconstruction_fn": "utils.reconstruct.reconstruct_from_generated"
+}

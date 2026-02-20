@@ -1,0 +1,285 @@
+WORKER_STARTUP
+DATE_UTC: 2026-02-20T12:00:00Z
+CWD: /Users/mac/Downloads/code/project/CorrDiff
+GIT_BASE: 4450dce
+
+== openspec/changes/add-disenmood-integration/progress.txt (head) ==
+================================================================================
+PROGRESS LOG: add-disenmood-integration
+Created: 2026-02-20T00:00:00Z
+Supervisor: Claude Code (Sonnet 4.6)
+CODEX_CMD: codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium
+
+This file is APPEND-ONLY. Never rewrite or reorder existing entries.
+Each RUN entry must contain a RUN SUMMARY and a DIALOGUE+TOOL TRACE.
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T04:10:00Z     Run: #1     Attempt: 1
+Change: add-disenmood-integration         Task: 1.1   Ref: R1
+
+Status: FAIL
+
+Git anchors (this RUN):
+- (Not PASS) No commit created.
+- GIT_BASE at run start: c5047aa
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #1) under task 1.1 — RESULT: FAIL
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0001__task-1.1__ref-R1__20260220T000000Z/logs/worker_startup.txt
+- auto_test_openspec/add-disenmood-integration/run-0001__task-1.1__ref-R1__20260220T000000Z/ — bundle present but validation failed
+- feature_list.json: not updated (FAIL)
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0001__task-1.1__ref-R1__20260220T000000Z/run.sh
+- EXIT_CODE: 1
+- OUTPUT EXCERPT:
+  ModuleNotFoundError: No module named 'models'
+  (run.sh does cd REPO_ROOT then python scripts/train_vae.py;
+   Python sets sys.path[0]=scripts/ not repo root; PYTHONPATH not set)
+- CONFIRMED WORKING: python -c "import sys; sys.path.insert(0,'.'); from models.guide_model import DisentangledVAE" => OK
+
+Changes verified: scripts/train_vae.py (240 lines), configs/vae_toy_config.yml (new files created by Worker)
+Bundle: task.md + run.sh + run.bat + logs/worker_startup.txt + inputs/vae_toy_config.yml + outputs/ all present.
+
+Retry decision: ATTEMPT=1 < MAX_ATTEMPTS=2 => retry Attempt #2 with UNBLOCK GUIDANCE on PYTHONPATH fix.
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.1 [#R1]: implement scripts/train_vae.py + toy config + bundle.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created scripts/train_vae.py (240 lines), configs/vae_toy_config.yml, bundle under run-0001__task-1.1__ref-R1__20260220T000000Z/. Worker_startup.txt captured (GIT_BASE=c5047aa). Appended BUNDLE (RUN #1) line under task 1.1 in tasks.md. Governance: no checkboxes toggled, no EVIDENCE written, no git commits, feature_list.json untouched.
+[Tool Use] <bash - bash run.sh> EXIT_CODE=1
+[Supervisor] FAIL: ModuleNotFoundError: No module named 'models'. Root cause: Python sys.path[0]=scripts/ not repo root. Fix: set PYTHONPATH or add sys.path.insert in train_vae.py. Recording FAIL evidence, adding UNBLOCK GUIDANCE, dispatching Attempt #2.
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T05:30:00Z     Run: #2     Attempt: 2
+Change: add-disenmood-integration         Task: 1.1   Ref: R1
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 285239f "[openspec] task-1.1 R1 PASS: DisentangledVAE pretraining entrypoint (train_vae.py + vae_toy_config)"
+- Diffstat (short): 22 files changed, 963 insertions(+)
+- Key files: scripts/train_vae.py, configs/vae_toy_config.yml, auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #2) under task 1.1 — RESULT: PASS | GIT_COMMIT: 285239f
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/logs/worker_startup.txt
+- auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/ — validation bundle
+- feature_list.json: ref=R1 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#2 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT: "OK: checkpoint contains encoder_state_dict + decoder_state_dict"
+- PYTHONPATH fix: run.sh exports PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}" before python call
+
+Changes verified:
+- scripts/train_vae.py (240 lines): standalone DisentangledVAE pretraining entrypoint
+- configs/vae_toy_config.yml: minimal toy config (1 epoch, 6 samples, hidden_dim=16)
+- outputs/vae_checkpoint.pt: verified contains encoder_state_dict + decoder_state_dict
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker Attempt #2 for task 1.1 [#R1] with UNBLOCK GUIDANCE: fix PYTHONPATH in run.sh.
+[Tool Use] <task - spawn codex-worker subagent (Attempt #2)>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Updated run.sh with PYTHONPATH fix. Created run-0002 bundle. Added BUNDLE (RUN #2) line in tasks.md. Worker startup log captured. Governance: no checkboxes toggled, no EVIDENCE, no git commits, feature_list.json untouched.
+[Tool Use] <bash - bash run-0002.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: "OK: checkpoint contains encoder_state_dict + decoder_state_dict". Writing EVIDENCE (RUN #2), updating feature_list.json R1 passes=true, creating checkpoint commit 285239f, appending runs.log, toggling checkbox [x].
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T06:30:00Z     Run: #3     Attempt: 1
+Change: add-disenmood-integration         Task: 1.2   Ref: R2
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 95f597c "[openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility"
+- Diffstat (short): 14 files changed, 684 insertions(+)
+- Key files: utils/latent_cache.py, scripts/encode_latents.py, auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #3) under task 1.2 — RESULT: PASS | GIT_COMMIT: 95f597c
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/logs/worker_startup.txt
+- auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/ — validation bundle
+- feature_list.json: ref=R2 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#3 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT:
+  Latent encoding mode: offline
+  OK: latent_batch.npz contains z_shared and z_pi_* with expected shapes
+
+Changes verified:
+- utils/latent_cache.py: LatentCache, encode_batch_latents(), build_latent_cache(), save/load_latent_cache_npz(), offline/online modes
+- scripts/encode_latents.py: CLI entrypoint with mode logging
+- outputs/latent_batch.npz: verified contains z_shared + z_pi_* with correct shapes
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.2 [#R2]: implement latent encoding path (offline/online) + bundle.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created utils/latent_cache.py + scripts/encode_latents.py + bundle under run-0003. Worker startup log captured (GIT_BASE=027b9e2). Added BUNDLE (RUN #3) under task 1.2. Governance clean.
+[Tool Use] <bash - bash run-0003.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: "Latent encoding mode: offline / OK: latent_batch.npz contains z_shared and z_pi_*". Writing EVIDENCE (RUN #3), updating feature_list.json R2 passes=true, creating checkpoint commit 95f597c, appending runs.log, toggling checkbox [x].
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T07:30:00Z     Run: #4     Attempt: 1
+Change: add-disenmood-integration         Task: 1.3   Ref: R3
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 17ca33d "[openspec] task-1.3 R3 PASS: BranchDiffusion latent diffusion in DisenMoOD mode (train_disenmood.py)"
+- Diffstat (short): 11 files changed, 455 insertions(+), 50 deletions(-)
+- Key files: scripts/train_diffusion_joint.py (modified), auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #4) under task 1.3 — RESULT: PASS | GIT_COMMIT: 17ca33d
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/logs/worker_startup.txt
+- feature_list.json: ref=R3 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#4 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT:
+  [INFO] Skipping 3D coordinate diffusion (DisenMoOD mode)
+  [INFO] DisenMoOD mode: using BranchDiffusion for latent diffusion, skipping 3D coordinate noise
+  [INFO] Wrote step metrics JSON: .../outputs/train_step_metrics.json
+  Skipping 3D coordinate diffusion (DisenMoOD mode)
+  DisenMoOD mode: using BranchDiffusion for latent diffusion, skipping 3D coordinate noise
+  OK: metrics JSON contains latent_diffusion_loss
+
+Changes verified:
+- scripts/train_diffusion_joint.py: disenmood_mode flag; latent_diffusion_loss; 3D noise path gated
+- outputs/train_step_metrics.json: {"latent_diffusion_loss": <float>, "mode": "disenmood"}
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.3 [#R3]: integrate BranchDiffusion into training loop.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Modified scripts/train_diffusion_joint.py + created run-0004 bundle. BUNDLE (RUN #4) line added under task 1.3. Governance clean (GIT_BASE=bc043a5).
+[Tool Use] <bash - bash run-0004.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: DisenMoOD mode confirmed, latent_diffusion_loss in JSON. Writing EVIDENCE (RUN #4), R3 passes=true, commit 17ca33d, runs.log updated, checkbox [x].
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T08:30:00Z     Run: #5     Attempt: 1
+Change: add-disenmood-integration         Task: 1.4   Ref: R4
+
+Status: FAIL
+
+Git anchors (this RUN):
+- (Not PASS) No commit created.
+- GIT_BASE at run start: 4afe066
+
+
+== openspec/changes/add-disenmood-integration/feature_list.json ==
+{
+  "change_id": "add-disenmood-integration",
+  "description": "DisenMoOD Integration: Two-stage training workflow (DisentangledVAE pretraining + BranchDiffusion latent diffusion)",
+  "features": [
+    {
+      "ref": "R1",
+      "task": "1.1",
+      "description": "VAE pretraining entrypoint (scripts/train_vae.py or equivalent + config example; completes one epoch on small subset and writes checkpoint)",
+      "scope": "CLI",
+      "passes": true
+    },
+    {
+      "ref": "R2",
+      "task": "1.2",
+      "description": "Latent encoding path for BranchDiffusion training (offline cache default; online encode optional switch; training log shows selected mode)",
+      "scope": "CLI",
+      "passes": true
+    },
+    {
+      "ref": "R3",
+      "task": "1.3",
+      "description": "BranchDiffusion integrated into main training loop (scripts/train_diffusion_joint.py in DisenMoOD mode; uses latent-space diffusion; skips 3D coordinate noise)",
+      "scope": "CLI",
+      "passes": true
+    },
+    {
+      "ref": "R4",
+      "task": "1.4",
+      "description": "Latent decode to 3D coordinates and SMILES export helper (DisentangledVAE.decode() returns xyz + atomic_nums; SMILES export via utils/reconstruct.py or equivalent)",
+      "scope": "CLI",
+      "passes": true
+    },
+    {
+      "ref": "R5",
+      "task": "1.5",
+      "description": "Sampling pipeline updated to decode generated latents (BranchDiffusion z_shared/{z_pi} → decode → 3D + SMILES via reconstruction path)",
+      "scope": "CLI",
+      "passes": true
+    },
+    {
+      "ref": "R6",
+      "task": "1.6",
+      "description": "Two-stage workflow documented and legacy 3D diffusion path gated (DisenMoOD mode disables legacy path; no fallback route)",
+      "scope": "CLI",
+      "passes": true
+    },
+    {
+      "ref": "R7",
+      "task": "1.7",
+      "description": "Decoder output contract defined (xyz and atomic_nums required fields; aromatic/atom_affinity optional; fields aligned with utils.reconstruct.reconstruct_from_generated input)",
+      "scope": "CLI",
+      "passes": false
+    }
+  ]
+}
+
+== git log --oneline -20 ==
+4450dce [openspec] task-1.6 R6 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+9bb5269 [openspec] task-1.6 R6 PASS: two-stage workflow docs + legacy 3D path gated (disenmood_workflow.md)
+6999ff3 [openspec] task-1.5 R5 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+afb8c12 [openspec] task-1.5 R5 PASS: sampling pipeline decodes latents to 3D + SMILES (sample_disenmood.py)
+b5f9914 [openspec] task-1.4 R4 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+605430a [openspec] task-1.4 R4 PASS: DisentangledVAE.decode() + SMILES export helper (smiles_export.py + decode_latents.py)
+4afe066 [openspec] task-1.3 R3 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+17ca33d [openspec] task-1.3 R3 PASS: BranchDiffusion latent diffusion in DisenMoOD mode (train_disenmood.py)
+bc043a5 [openspec] task-1.2 R2 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+95f597c [openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility
+027b9e2 [openspec] task-1.1 R1 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+285239f [openspec] task-1.1 R1 PASS: DisentangledVAE pretraining entrypoint (train_vae.py + vae_toy_config)
+c5047aa 功能1
+7a1c654 [openspec] task-1.8 R8 PASS: DisenMoOD evaluation pipeline (HV/Sparsity/corr_error/intervention/docking)
+84b9936 [openspec] task-1.8 R8 BLOCKED: codex exec denied by sandbox (session exit)
+15eec50 [openspec] task-1.7 R7 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+c4e2a40 [openspec] task-1.7 R7 PASS: ExpertPredictorEvaluator R2 during training
+24c0ab0 [openspec] task-1.6 R6 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+e4445b2 [openspec] task-1.6 R6 PASS: CorrelationAwareMOGuidance with Pareto selection
+278185c [openspec] task-1.5 R5 bookkeeping: EVIDENCE + feature_list + progress + runs.log
