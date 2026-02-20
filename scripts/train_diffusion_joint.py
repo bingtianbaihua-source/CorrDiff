@@ -156,6 +156,361 @@ def _run_disenmood_one_step(*, config, args, logger) -> dict:
     return metrics
 
 
+def _tg_batch_to_encode_dict(batch, ligand_vocab_size: int = 13) -> dict:
+    """Convert a torch_geometric Data batch to the dict expected by encode_batch_latents.
+
+    protein_atom_feature  : already (N, 27) float — passed through directly.
+    ligand_atom_feature_full: integer indices (N,) — one-hot encoded to (N, vocab_size).
+    """
+    import torch.nn.functional as F
+    lig_idx = batch.ligand_atom_feature_full.long()
+    lig_feat = F.one_hot(lig_idx, num_classes=ligand_vocab_size).float()
+    return {
+        "protein_pos": batch.protein_pos,
+        "protein_feat": batch.protein_atom_feature.float(),
+        "ligand_pos": batch.ligand_pos,
+        "ligand_feat": lig_feat,
+        "batch_protein": batch.protein_element_batch,
+        "batch_ligand": batch.ligand_element_batch,
+    }
+
+
+def _run_disenmood_training(*, config, args) -> None:
+    """
+    DisenMoOD 多 epoch 训练主循环。
+
+    - 玩具模式（config 无 data 字段）：使用合成批次，运行 max_iters 步（默认 1），
+      写入 step_metrics_path，兼容 CI 测试。
+    - 真实数据模式（config 有 data 字段）：加载 get_dataset()，冻结预训练 VAE，
+      用 BranchDiffusion 做潜变量扩散，支持多 epoch、验证、TensorBoard、断点续训。
+    """
+    from utils.latent_cache import encode_batch_latents
+
+    device = torch.device(args.device)
+    misc.seed_all(int(getattr(config.train, "seed", 0)))
+
+    disenmood_cfg = getattr(getattr(config, "model", {}), "disenmood", {})
+    vae_cfg = getattr(disenmood_cfg, "vae", {})
+    bd_cfg = getattr(disenmood_cfg, "branch_diffusion", {})
+    property_names = list(getattr(vae_cfg, "property_names", ["affinity", "qed", "sa"]))
+
+    has_real_data = hasattr(config, "data")
+
+    # ── 日志 / TensorBoard ────────────────────────────────────────────
+    config_name = os.path.basename(args.config)[:os.path.basename(args.config).rfind('.')]
+    if has_real_data:
+        log_dir = misc.get_new_log_dir(
+            args.logdir, prefix=config_name + "_disenmood", tag=args.tag
+        )
+        ckpt_dir = os.path.join(log_dir, "checkpoints")
+        os.makedirs(ckpt_dir, exist_ok=True)
+        logger = misc.get_logger("train_disenmood", log_dir)
+        writer = torch.utils.tensorboard.SummaryWriter(log_dir)
+        shutil.copyfile(args.config, os.path.join(log_dir, os.path.basename(args.config)))
+        logger.info(args)
+        logger.info(config)
+    else:
+        logger = misc.get_logger("train_disenmood", log_dir=None)
+        writer = None
+        ckpt_dir = None
+
+    # ── 数据集 ────────────────────────────────────────────────────────
+    if has_real_data:
+        from torch_geometric.loader import DataLoader as TGDataLoader
+        from torch_geometric.transforms import Compose
+        import utils.transforms as trans
+        from datasets import get_dataset
+        from datasets.pl_data import FOLLOW_BATCH
+
+        protein_featurizer = trans.FeaturizeProteinAtom()
+        ligand_featurizer = trans.FeaturizeLigandAtom(config.data.transform.ligand_atom_mode)
+        transform_list = [
+            protein_featurizer,
+            ligand_featurizer,
+            trans.FeaturizeLigandBond(),
+            trans.NormalizeVina(config.data.name),
+        ]
+        if config.data.transform.random_rot:
+            transform_list.append(trans.RandomRotation())
+        transform = Compose(transform_list)
+
+        logger.info("Loading dataset...")
+        dataset, subsets = get_dataset(config=config.data, transform=transform)
+        if config.data.name in ("pl", "pl_chem"):
+            train_set, val_set = subsets["train"], subsets["test"]
+        elif config.data.name == "pdbbind":
+            train_set, val_set = subsets["train"], subsets["val"]
+        else:
+            raise ValueError(f"Unknown dataset: {config.data.name}")
+        logger.info(f"Training: {len(train_set)}  Validation: {len(val_set)}")
+
+        collate_excl = ["ligand_nbh_list"]
+        num_workers = int(getattr(config.train, "num_workers", 4))
+        train_loader = TGDataLoader(
+            train_set,
+            batch_size=config.train.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            follow_batch=FOLLOW_BATCH,
+            exclude_keys=collate_excl,
+        )
+        val_loader = TGDataLoader(
+            val_set,
+            batch_size=config.train.batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            follow_batch=FOLLOW_BATCH,
+            exclude_keys=collate_excl,
+        )
+        protein_feat_dim = protein_featurizer.feature_dim
+        ligand_feat_dim = ligand_featurizer.feature_dim
+    else:
+        toy_cfg = getattr(config, "toy", {})
+        protein_feat_dim = int(getattr(toy_cfg, "protein_atom_feature_dim", 8))
+        ligand_feat_dim = int(getattr(toy_cfg, "ligand_atom_feature_dim", 8))
+        train_loader = None
+        val_loader = None
+
+    # ── VAE（冻结）──────────────────────────────────────────────────
+    vae = DisentangledVAE(
+        vae_cfg,
+        protein_atom_feature_dim=protein_feat_dim,
+        ligand_atom_feature_dim=ligand_feat_dim,
+    ).to(device)
+
+    vae_ckpt_path = getattr(args, "vae_ckpt", "") or ""
+    if vae_ckpt_path:
+        logger.info(f"Loading VAE checkpoint: {vae_ckpt_path}")
+        vae_ckpt = torch.load(vae_ckpt_path, map_location=device)
+        vae.load_state_dict(vae_ckpt["model_state_dict"])
+        logger.info("VAE weights loaded from checkpoint.")
+    vae.eval()
+    for p in vae.parameters():
+        p.requires_grad_(False)
+
+    # ── BranchDiffusion ───────────────────────────────────────────────
+    bd = BranchDiffusion(
+        z_shared_dim=int(getattr(vae, "z_shared_dim", 32)),
+        z_pi_dim=int(getattr(vae, "z_pi_dim", 16)),
+        property_names=property_names,
+        num_steps=int(getattr(bd_cfg, "num_steps", 50)),
+        time_emb_dim=int(getattr(bd_cfg, "time_emb_dim", 64)),
+        hidden_dim=int(getattr(bd_cfg, "hidden_dim", 128)),
+        num_layers=int(getattr(bd_cfg, "num_layers", 2)),
+        sigma_min=float(getattr(bd_cfg, "sigma_min", 0.01)),
+        sigma_max=float(getattr(bd_cfg, "sigma_max", 1.0)),
+        device=device,
+    )
+
+    lr = float(getattr(config.train, "lr", 1e-3))
+    optimizer = torch.optim.Adam(bd.parameters(), lr=lr)
+    max_grad_norm = float(getattr(config.train, "max_grad_norm", 1.0))
+    # 默认 max_iters=1 保持玩具 CI 兼容；真实训练请在 config 里显式设置
+    max_iters = int(getattr(config.train, "max_iters", 1))
+    val_freq = int(getattr(config.train, "val_freq", max(max_iters // 10, 1)))
+    train_report_iter = int(getattr(args, "train_report_iter", 200))
+
+    # 断点续训（仅真实数据模式）
+    start_iter = 0
+    if args.ckpt and has_real_data:
+        logger.info(f"Resuming BranchDiffusion from: {args.ckpt}")
+        bd_ckpt = torch.load(args.ckpt, map_location=device)
+        bd.load_state_dict(bd_ckpt["bd"])
+        optimizer.load_state_dict(bd_ckpt["optimizer"])
+        start_iter = int(bd_ckpt.get("iteration", 0))
+        logger.info(f"Resumed at iter {start_iter}")
+
+    # LR Scheduler（仅真实数据模式）
+    scheduler = None
+    if has_real_data:
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", factor=0.5, patience=3
+        )
+
+    logger.info("Skipping 3D coordinate diffusion (DisenMoOD mode)")
+    logger.info(
+        "DisenMoOD mode: using BranchDiffusion for latent diffusion, "
+        "skipping 3D coordinate noise"
+    )
+
+    # 无限迭代器（真实数据模式）
+    if has_real_data:
+        _iter_state = {"it": iter(train_loader)}
+
+        def _next_train_batch():
+            try:
+                return next(_iter_state["it"])
+            except StopIteration:
+                _iter_state["it"] = iter(train_loader)
+                return next(_iter_state["it"])
+
+    best_val_loss: float | None = None
+    best_val_iter: int | None = None
+    last_loss_tensor = None
+
+    try:
+        for it in range(start_iter, max_iters):
+            bd.train()
+            optimizer.zero_grad(set_to_none=True)
+
+            # ── 构建 encode 字典 ─────────────────────────────────────
+            if has_real_data:
+                batch = _next_train_batch().to(device)
+                encode_dict = _tg_batch_to_encode_dict(batch)
+                batch_size = int(batch.num_graphs)
+            else:
+                toy_cfg = getattr(config, "toy", {})
+                batch_size = int(getattr(config.train, "batch_size", 2))
+                encode_dict = _make_toy_disenmood_batch(
+                    batch_size=batch_size,
+                    n_protein_atoms=int(getattr(toy_cfg, "n_protein_atoms", 4)),
+                    n_ligand_atoms=int(getattr(toy_cfg, "n_ligand_atoms", 5)),
+                    protein_feat_dim=protein_feat_dim,
+                    ligand_feat_dim=ligand_feat_dim,
+                    device=device,
+                )
+
+            with torch.no_grad():
+                z_shared, z_pi_list = encode_batch_latents(
+                    vae=vae, batch=encode_dict, property_names=property_names, device=device
+                )
+
+            num_steps_bd = int(bd.num_steps)
+            t = torch.randint(0, num_steps_bd, (batch_size,), device=device, dtype=torch.long)
+            sigma = bd.sigmas[t].view(-1, 1).to(device)
+
+            loss_shared = _latent_denoising_loss(
+                score_net=bd.backbone, x0=z_shared, t=t, sigma=sigma
+            )
+            loss_pi_parts = [
+                _latent_denoising_loss(
+                    score_net=bd.branches[name], x0=zpi, t=t, sigma=sigma
+                )
+                for name, zpi in zip(property_names, z_pi_list)
+            ]
+            loss_pi = (
+                torch.stack(loss_pi_parts).mean()
+                if loss_pi_parts
+                else loss_shared.new_zeros(())
+            )
+            latent_diffusion_loss = loss_shared + loss_pi
+            latent_diffusion_loss.backward()
+            orig_grad_norm = clip_grad_norm_(bd.parameters(), max_grad_norm)
+            optimizer.step()
+            last_loss_tensor = latent_diffusion_loss
+
+            if it % train_report_iter == 0:
+                logger.info(
+                    "[Train] Iter %d | loss %.6f (shared %.6f | pi %.6f) "
+                    "| grad %.4f | lr %.2e" % (
+                        it,
+                        float(latent_diffusion_loss),
+                        float(loss_shared),
+                        float(loss_pi),
+                        float(orig_grad_norm),
+                        optimizer.param_groups[0]["lr"],
+                    )
+                )
+                if writer is not None:
+                    writer.add_scalar("train/loss", float(latent_diffusion_loss), it)
+                    writer.add_scalar("train/loss_shared", float(loss_shared), it)
+                    writer.add_scalar("train/loss_pi", float(loss_pi), it)
+                    writer.add_scalar("train/grad_norm", float(orig_grad_norm), it)
+                    writer.add_scalar("train/lr", optimizer.param_groups[0]["lr"], it)
+                    writer.flush()
+
+            # ── 验证 ─────────────────────────────────────────────────
+            run_val = (it % val_freq == 0) or (it == max_iters - 1)
+            if run_val:
+                bd.eval()
+                val_total, val_n = 0.0, 0
+                with torch.no_grad():
+                    if has_real_data:
+                        for vbatch in val_loader:
+                            vbatch = vbatch.to(device)
+                            vbs = int(vbatch.num_graphs)
+                            venc = _tg_batch_to_encode_dict(vbatch)
+                            vz_s, vz_pi_list = encode_batch_latents(
+                                vae=vae, batch=venc,
+                                property_names=property_names, device=device
+                            )
+                            vt = torch.randint(
+                                0, num_steps_bd, (vbs,), device=device, dtype=torch.long
+                            )
+                            vsigma = bd.sigmas[vt].view(-1, 1)
+                            vl_s = _latent_denoising_loss(
+                                score_net=bd.backbone, x0=vz_s, t=vt, sigma=vsigma
+                            )
+                            vl_pi_parts = [
+                                _latent_denoising_loss(
+                                    score_net=bd.branches[name], x0=zpi, t=vt, sigma=vsigma
+                                )
+                                for name, zpi in zip(property_names, vz_pi_list)
+                            ]
+                            vl_pi = (
+                                torch.stack(vl_pi_parts).mean()
+                                if vl_pi_parts
+                                else vl_s.new_zeros(())
+                            )
+                            val_total += float(vl_s + vl_pi) * vbs
+                            val_n += vbs
+                    else:
+                        # 玩具模式：用训练 loss 近似验证
+                        val_total = float(latent_diffusion_loss.detach())
+                        val_n = 1
+
+                avg_val_loss = val_total / max(val_n, 1)
+                logger.info("[Val] Iter %d | val_loss %.6f" % (it, avg_val_loss))
+                if writer is not None:
+                    writer.add_scalar("val/loss", avg_val_loss, it)
+                    writer.flush()
+
+                if scheduler is not None:
+                    scheduler.step(avg_val_loss)
+
+                if has_real_data and ckpt_dir is not None:
+                    if best_val_loss is None or avg_val_loss < best_val_loss:
+                        best_val_loss = avg_val_loss
+                        best_val_iter = it
+                        ckpt_path = os.path.join(ckpt_dir, f"{it}.pt")
+                        torch.save({
+                            "config": config,
+                            "bd": bd.state_dict(),
+                            "optimizer": optimizer.state_dict(),
+                            "iteration": it,
+                            "val_loss": avg_val_loss,
+                        }, ckpt_path)
+                        logger.info(
+                            f"[Val] Best val loss {avg_val_loss:.6f} -> saved {ckpt_path}"
+                        )
+                    else:
+                        logger.info(
+                            f"[Val] Not improved. Best: {best_val_loss:.6f} "
+                            f"at iter {best_val_iter}"
+                        )
+
+    except KeyboardInterrupt:
+        logger.info("Terminating...")
+
+    if writer is not None:
+        writer.close()
+
+    # ── 写入 step metrics（CI / 玩具模式兼容）──────────────────────
+    final_loss = (
+        float(last_loss_tensor.detach().cpu().item())
+        if last_loss_tensor is not None
+        else 0.0
+    )
+    metrics = {"mode": "disenmood", "latent_diffusion_loss": final_loss}
+    metrics_path = getattr(config.train, "step_metrics_path", "outputs/train_step_metrics.json")
+    metrics_path = os.path.abspath(metrics_path)
+    os.makedirs(os.path.dirname(metrics_path) or ".", exist_ok=True)
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+        f.write("\n")
+    logger.info("Wrote step metrics JSON: %s", metrics_path)
+
+
 def main():
     
     parser = argparse.ArgumentParser()
@@ -166,6 +521,8 @@ def main():
     parser.add_argument('--tag', type=str, default='')
     parser.add_argument('--value_only', action='store_true')
     parser.add_argument('--train_report_iter', type=int, default=200)
+    parser.add_argument('--vae_ckpt', type=str, default='',
+                        help='Path to pre-trained DisentangledVAE checkpoint (Stage 1 output).')
     args = parser.parse_args()
 
     # load ckpt
@@ -181,8 +538,7 @@ def main():
     disenmood_mode = bool(getattr(config, "disenmood_mode", False))
 
     if disenmood_mode:
-        logger = misc.get_logger("train_disenmood", log_dir=None)
-        _run_disenmood_one_step(config=config, args=args, logger=logger)
+        _run_disenmood_training(config=config, args=args)
         return
 
     import pandas as pd

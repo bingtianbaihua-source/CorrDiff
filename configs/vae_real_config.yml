@@ -1,0 +1,62 @@
+# DisenMoOD — Stage 1: DisentangledVAE 真实数据预训练
+# 用法：
+#   python scripts/train_vae.py \
+#     --config configs/vae_real_config.yml \
+#     --output checkpoints/vae.pt
+#
+# 注：train_vae.py 使用内置玩具数据集。如需在真实数据上预训练 VAE，
+# 请将真实 DataLoader 接入（或参考 disenmood_training.yml 用 train_diffusion_joint.py
+# 在第一次调用时使用随机初始化 VAE，再逐步微调）。
+#
+# 本文件的 data.* 字段供 train_vae.py 的 ToyDataConfig 使用：
+# 用合理大小的合成数据（与真实特征维度一致）快速热身 VAE 权重。
+
+device: cpu   # 预训练在 CPU 上跑即可（玩具集很小）；真实数据改为 cuda:0
+
+train:
+  seed: 2021
+  epochs: 50          # 合成数据 epoch 数，快速初始化权重
+  batch_size: 16
+  lr: 1.0e-3
+  weight_decay: 1.0e-5
+
+# ToyDataConfig（与真实特征维度对齐）
+data:
+  num_samples: 512
+  num_protein_atoms: 60    # 每样本蛋白口袋原子数（合成数据的平均值）
+  num_ligand_atoms: 20     # 每样本配体原子数
+  # 必须与真实 featurizer 维度一致：
+  protein_atom_feature_dim: 27   # FeaturizeProteinAtom.feature_dim = 6+20+1
+  ligand_atom_feature_dim: 13    # FeaturizeLigandAtom(add_aromatic).feature_dim
+
+# 模型结构（与 disenmood_training.yml 中 model.disenmood.vae 一致）
+model:
+  hidden_dim: 128
+  num_layers: 4
+  edge_feat_dim: 4
+  num_r_gaussian: 20
+  knn: 32
+  r_max: 10.0
+  cutoff_mode: knn
+  act_fn: silu
+  norm: false
+  update_x: false
+
+  z_shared_dim: 64
+  z_pi_dim: 32
+  property_names: ["affinity", "qed", "sa"]
+
+  beta_kl: 1.0
+  tc_weight: 0.5
+  mi_weight: 0.5
+
+  enable_correlation_matrix: true
+  corr_hidden_dim: 128
+  corr_num_layers: 2
+  corr_norm: false
+  corr_act_fn: silu
+  corr_threshold: 0.5
+  corr_branch_interaction_strength: 0.1
+
+  decoder_num_atoms: 30
+  decoder_atom_types: [6, 7, 8, 9, 15, 16, 17]

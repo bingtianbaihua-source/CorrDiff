@@ -1,0 +1,97 @@
+# DisenMoOD 真实训练配置
+# 两阶段流程：
+#   Stage 1 — VAE 预训练:  python scripts/train_vae.py --config configs/vae_real_config.yml --output checkpoints/vae.pt
+#   Stage 2 — BranchDiffusion 训练（本配置）:
+#             python scripts/train_diffusion_joint.py \
+#               --config configs/disenmood_training.yml \
+#               --vae_ckpt checkpoints/vae.pt \
+#               --logdir logs/ \
+#               --device cuda:0
+#
+# 断点续训（BranchDiffusion）:
+#             python scripts/train_diffusion_joint.py \
+#               --config configs/disenmood_training.yml \
+#               --vae_ckpt checkpoints/vae.pt \
+#               --ckpt logs/<run_dir>/checkpoints/<iter>.pt \
+#               --logdir logs/ \
+#               --device cuda:0
+
+disenmood_mode: true
+
+# ── 数据集 ──────────────────────────────────────────────────────────────────
+data:
+  name: pl_chem                        # pl_chem | pdbbind
+  # CrossDocked 数据集路径，根据实际环境修改
+  path: /data/zhoujingyuan/kgdiff_20240314/crossdocked_v1.1_rmsd1.0_pocket10
+  # 划分文件（含 affinity / qed / sa / lipinski / logp 属性）
+  split: /data/zhoujingyuan/kgdiff_20240314/crossdocked_pocket10_pose_split_all_property.pt
+  transform:
+    ligand_atom_mode: add_aromatic     # 配套 ligand_atom_feature_dim=13
+    random_rot: false
+
+# ── 训练超参 ─────────────────────────────────────────────────────────────────
+train:
+  seed: 2021
+  batch_size: 8          # 显存不足时调小；推荐 ≥4 以保证 VAE covariance penalty 有意义
+  num_workers: 4
+  max_iters: 200000      # 约 200k 步；可按需调大
+  val_freq: 2000         # 每 2000 步验证一次并可能保存 checkpoint
+  lr: 1.0e-4
+  max_grad_norm: 1.0
+  # step_metrics_path 仅用于 CI/玩具模式，真实训练时忽略
+  step_metrics_path: outputs/train_step_metrics.json
+
+# ── 模型 ─────────────────────────────────────────────────────────────────────
+model:
+  disenmood:
+
+    # ---- DisentangledVAE -------------------------------------------------------
+    # 编码器输入维度由 transform 决定，必须与 featurizer 一致：
+    #   FeaturizeProteinAtom.feature_dim = 6 + 20 + 1 = 27
+    #   FeaturizeLigandAtom(add_aromatic).feature_dim  = 13
+    vae:
+      # 编码器
+      hidden_dim: 128
+      num_layers: 4
+      edge_feat_dim: 4
+      num_r_gaussian: 20
+      knn: 32
+      r_max: 10.0
+      cutoff_mode: knn
+      act_fn: silu
+      norm: false
+      update_x: false
+
+      # 隐变量
+      z_shared_dim: 64    # 共享语义潜变量维度
+      z_pi_dim: 32        # 每个属性的专属潜变量维度
+
+      # 属性分支（与数据集中实际有标注的属性对齐）
+      property_names: ["affinity", "qed", "sa"]
+
+      # VAE 损失权重
+      beta_kl: 1.0        # KL 散度权重 (β-VAE)
+      tc_weight: 0.5      # 总相关性惩罚（off-diagonal covariance）
+      mi_weight: 0.5      # z_shared 与 z_pi 之间的互信息惩罚
+
+      # 相关矩阵模块（建模属性间关联）
+      enable_correlation_matrix: true
+      corr_hidden_dim: 128
+      corr_num_layers: 2
+      corr_norm: false
+      corr_act_fn: silu
+      corr_threshold: 0.5
+      corr_branch_interaction_strength: 0.1
+
+      # 解码器（用于 VAE 预训练；Stage 2 推理时通过 decode() 调用）
+      decoder_num_atoms: 30           # 解码输出的最大原子数（按数据集配体平均大小设置）
+      decoder_atom_types: [6, 7, 8, 9, 15, 16, 17]   # C N O F P S Cl
+
+    # ---- BranchDiffusion -------------------------------------------------------
+    branch_diffusion:
+      num_steps: 1000         # 扩散步数
+      time_emb_dim: 128
+      hidden_dim: 256
+      num_layers: 4
+      sigma_min: 0.01
+      sigma_max: 10.0
