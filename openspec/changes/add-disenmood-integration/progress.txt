@@ -268,3 +268,45 @@ Changes verified:
 [Tool Use] <bash - bash run-0006.../run.sh> EXIT_CODE=0
 [Supervisor] PASS: xyz=(8,3), atomic_nums=(8,), SMILES_UNAVAILABLE_IN_TOY_MODE documented. Writing EVIDENCE (RUN #6), R4 passes=true, commit 605430a.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T10:30:00Z     Run: #7     Attempt: 1
+Change: add-disenmood-integration         Task: 1.5   Ref: R5
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: afb8c12 "[openspec] task-1.5 R5 PASS: sampling pipeline decodes latents to 3D + SMILES (sample_disenmood.py)"
+- Diffstat (short): 13 files changed, 573 insertions(+)
+- Key files: scripts/sample_disenmood.py, auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #7) under task 1.5 — RESULT: PASS | GIT_COMMIT: afb8c12
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/logs/worker_startup.txt
+- feature_list.json: ref=R5 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#7 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT:
+  Wrote: .../outputs/generated_molecules.smi (3 non-empty lines)
+  Wrote: .../outputs/generated_molecules_3d.npz (xyz=(3, 8, 3), atomic_nums=(3, 8))
+
+Changes verified:
+- scripts/sample_disenmood.py: BranchDiffusion sampling → DisentangledVAE.decode() → SMILES + 3D output
+- 3 molecules generated; .smi and _3d.npz counts match (1-to-1 correspondence)
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.5 [#R5]: update sampling pipeline to decode latents.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created scripts/sample_disenmood.py + run-0007 bundle. BUNDLE (RUN #7) line added. Governance clean (GIT_BASE=b5f9914).
+[Tool Use] <bash - bash run-0007.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: 3 SMILES lines + 3D coords 1-to-1. Writing EVIDENCE (RUN #7), R5 passes=true, commit afb8c12.
+================================================================================

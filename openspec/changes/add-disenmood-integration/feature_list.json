@@ -35,7 +35,7 @@
       "task": "1.5",
       "description": "Sampling pipeline updated to decode generated latents (BranchDiffusion z_shared/{z_pi} → decode → 3D + SMILES via reconstruction path)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R6",

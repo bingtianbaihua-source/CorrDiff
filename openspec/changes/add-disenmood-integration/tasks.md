@@ -55,7 +55,7 @@
   UNBLOCK GUIDANCE (RUN #5, Attempt #1): In utils/smiles_export.py fallback, return "SMILES_UNAVAILABLE_IN_TOY_MODE" (non-empty str) instead of "". Also update run.sh verification to accept smiles_utf8 containing "UNAVAILABLE" as documented alternative. xyz=(8,3) and atomic_nums=(8,) are already correct.
   EVIDENCE (RUN #6): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0006__task-1.4__ref-R4__20260220T090000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0006__task-1.4__ref-R4__20260220T090000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0006__task-1.4__ref-R4__20260220T090000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 605430a | COMMIT_MSG: "[openspec] task-1.4 R4 PASS: DisentangledVAE.decode() + SMILES export helper" | DIFFSTAT: "19 files changed, 701 insertions(+)"
 
-- [ ] 1.5 Update sampling pipeline to decode generated latents [#R5]
+- [x] 1.5 Update sampling pipeline to decode generated latents [#R5]
   - ACCEPT: 采样阶段从 BranchDiffusion 得到 z_shared/{z_pi} 后，调用解码得到 3D 结构与原子类型，并复用重建路径输出 SMILES。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -65,6 +65,7 @@
       Outputs: outputs/generated_molecules.smi
     - Verify: 输出包含至少一条 SMILES 且与 3D 坐标输出一一对应
   BUNDLE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: afb8c12 | COMMIT_MSG: "[openspec] task-1.5 R5 PASS: sampling pipeline decodes latents to 3D + SMILES (sample_disenmood.py)" | DIFFSTAT: "13 files changed, 573 insertions(+)"
 
 - [ ] 1.6 Document two-stage workflow and gate legacy 3D diffusion path [#R6]
   - ACCEPT: 文档或配置明确两阶段流程；旧 3D 扩散路径在 DisenMoOD 模式下被禁用（无回退路径）。
