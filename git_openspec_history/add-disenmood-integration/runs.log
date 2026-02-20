@@ -1,1 +1,2 @@
 run#2 | commit=285239f | msg="[openspec] task-1.1 R1 PASS: DisentangledVAE pretraining entrypoint (train_vae.py + vae_toy_config)" | files=scripts/train_vae.py,configs/vae_toy_config.yml,auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/
+run#3 | commit=95f597c | msg="[openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility" | files=utils/latent_cache.py,scripts/encode_latents.py,auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/

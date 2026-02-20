@@ -94,3 +94,47 @@ Changes verified:
 [Tool Use] <bash - bash run-0002.../run.sh> EXIT_CODE=0
 [Supervisor] PASS: "OK: checkpoint contains encoder_state_dict + decoder_state_dict". Writing EVIDENCE (RUN #2), updating feature_list.json R1 passes=true, creating checkpoint commit 285239f, appending runs.log, toggling checkbox [x].
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T06:30:00Z     Run: #3     Attempt: 1
+Change: add-disenmood-integration         Task: 1.2   Ref: R2
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 95f597c "[openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility"
+- Diffstat (short): 14 files changed, 684 insertions(+)
+- Key files: utils/latent_cache.py, scripts/encode_latents.py, auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #3) under task 1.2 — RESULT: PASS | GIT_COMMIT: 95f597c
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/logs/worker_startup.txt
+- auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/ — validation bundle
+- feature_list.json: ref=R2 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#3 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT:
+  Latent encoding mode: offline
+  OK: latent_batch.npz contains z_shared and z_pi_* with expected shapes
+
+Changes verified:
+- utils/latent_cache.py: LatentCache, encode_batch_latents(), build_latent_cache(), save/load_latent_cache_npz(), offline/online modes
+- scripts/encode_latents.py: CLI entrypoint with mode logging
+- outputs/latent_batch.npz: verified contains z_shared + z_pi_* with correct shapes
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.2 [#R2]: implement latent encoding path (offline/online) + bundle.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created utils/latent_cache.py + scripts/encode_latents.py + bundle under run-0003. Worker startup log captured (GIT_BASE=027b9e2). Added BUNDLE (RUN #3) under task 1.2. Governance clean.
+[Tool Use] <bash - bash run-0003.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: "Latent encoding mode: offline / OK: latent_batch.npz contains z_shared and z_pi_*". Writing EVIDENCE (RUN #3), updating feature_list.json R2 passes=true, creating checkpoint commit 95f597c, appending runs.log, toggling checkbox [x].
+================================================================================

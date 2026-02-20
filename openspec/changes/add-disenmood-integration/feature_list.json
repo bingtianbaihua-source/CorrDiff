@@ -14,7 +14,7 @@
       "task": "1.2",
       "description": "Latent encoding path for BranchDiffusion training (offline cache default; online encode optional switch; training log shows selected mode)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R3",

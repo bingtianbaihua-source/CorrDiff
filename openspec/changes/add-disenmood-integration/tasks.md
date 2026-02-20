@@ -15,7 +15,7 @@
   REVIEW (RUN #1, Attempt #1): ModuleNotFoundError: No module named 'models' when run.sh executes python scripts/train_vae.py from repo root. Python sets sys.path[0]=scripts/ not repo root. Fix: run.sh must export PYTHONPATH="${REPO_ROOT}":${PYTHONPATH:-} before calling python, OR train_vae.py must insert the repo root (os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) into sys.path at startup. | EVIDENCE_PATH: auto_test_openspec/add-disenmood-integration/run-0001__task-1.1__ref-R1__20260220T000000Z/ | CMD: bash run.sh | EXIT_CODE: 1
   UNBLOCK GUIDANCE (RUN #1, Attempt #1): Root cause: Python 3 sets sys.path[0] to the script's directory (scripts/) not the cwd. Fix A (preferred): In run.sh, add `export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"` before the python call. Fix B: In train_vae.py, at the top of main() before imports, add `import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))`. Either fix allows `from models.guide_model import DisentangledVAE` to resolve. Verify with: `PYTHONPATH=. python -c "from models.guide_model import DisentangledVAE; print('OK')"` (already confirmed works).
 
-- [ ] 1.2 Provide latent encoding path (offline default, online optional) for BranchDiffusion training [#R2]
+- [x] 1.2 Provide latent encoding path (offline default, online optional) for BranchDiffusion training [#R2]
   - ACCEPT: 训练时支持离线缓存（默认）与在线 encode（可选开关）两种模式，并在训练日志中明确当前模式。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -25,6 +25,7 @@
       Outputs: outputs/latent_batch.npz
     - Verify: 输出包含 z_shared 与至少一个 z_pi，形状与配置一致，日志打印所选模式
   BUNDLE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 95f597c | COMMIT_MSG: "[openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility" | DIFFSTAT: "14 files changed, 684 insertions(+)"
 
 - [ ] 1.3 Integrate BranchDiffusion into main training loop [#R3]
   - ACCEPT: `scripts/train_diffusion_joint.py` 在 DisenMoOD 模式下使用 BranchDiffusion 计算潜空间扩散 loss，不再对 3D 坐标直接加噪。
