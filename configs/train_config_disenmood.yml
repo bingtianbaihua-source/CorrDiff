@@ -1,0 +1,34 @@
+disenmood_mode: true
+
+train:
+  seed: 0
+  batch_size: 2
+  lr: 0.001
+  step_metrics_path: outputs/train_step_metrics.json
+
+toy:
+  protein_atom_feature_dim: 8
+  ligand_atom_feature_dim: 8
+  n_protein_atoms: 4
+  n_ligand_atoms: 5
+
+model:
+  disenmood:
+    vae:
+      hidden_dim: 32
+      z_shared_dim: 8
+      z_pi_dim: 4
+      property_names: ["affinity", "qed", "sa"]
+      num_layers: 2
+      edge_feat_dim: 4
+      num_r_gaussian: 20
+      knn: 8
+      r_max: 6.0
+      update_x: false
+    branch_diffusion:
+      num_steps: 10
+      time_emb_dim: 32
+      hidden_dim: 64
+      num_layers: 2
+      sigma_min: 0.01
+      sigma_max: 1.0

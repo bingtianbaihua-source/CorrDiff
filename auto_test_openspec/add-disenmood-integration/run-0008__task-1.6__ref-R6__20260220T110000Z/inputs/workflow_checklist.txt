@@ -1,0 +1,4 @@
+stage_1_vae_pretraining
+stage_2_latent_diffusion
+disenmood_mode_switch
+legacy_3d_path_disabled

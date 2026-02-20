@@ -1,0 +1,23 @@
+DisenMoOD workflow summary (task 1.6 / R6)
+
+Stage 1: VAE pretraining
+- Script: scripts/train_vae.py
+- Config: configs/vae_toy_config.yml
+- Output: VAE checkpoint (.pt) with encoder/decoder weights
+
+Stage 2: BranchDiffusion latent diffusion training
+- Script: scripts/train_diffusion_joint.py
+- Config: configs/train_config_disenmood.yml
+- Uses latents from the DisentangledVAE encoder (z_shared + z_pi_*)
+
+DisenMoOD switch
+- Set disenmood_mode: true in config to enable the two-stage pipeline
+
+Legacy 3D diffusion path (coordinate diffusion)
+- Status when disenmood_mode: true => DISABLED (no fallback route)
+
+Checklist keys verified in docs/disenmood_workflow.md:
+- stage_1_vae_pretraining
+- stage_2_latent_diffusion
+- disenmood_mode_switch
+- legacy_3d_path_disabled

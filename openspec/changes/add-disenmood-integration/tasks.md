@@ -76,6 +76,7 @@
     - Inputs: inputs/workflow_checklist.txt
       Outputs: outputs/workflow_summary.txt
     - Verify: 文档/配置中包含两阶段步骤与 DisenMoOD 开关说明
+  BUNDLE (RUN #8): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z | HOW_TO_RUN: run.sh/run.bat
 
 - [ ] 1.7 Define decoder output contract for reconstruction compatibility [#R7]
   - ACCEPT: 文档明确 `xyz` 与 `atomic_nums` 为必需字段，`aromatic`/`atom_affinity` 为可选字段；采样输出字段与 `utils.reconstruct.reconstruct_from_generated` 输入一致。
