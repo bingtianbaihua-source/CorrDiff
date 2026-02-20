@@ -1,0 +1,17 @@
+model:
+  hidden_dim: 16
+  z_shared_dim: 32
+  z_pi_dim: 16
+  property_names: ["p0"]
+  decoder_num_atoms: 8
+  decoder_atom_types: [6, 7, 8]
+
+sampling:
+  seed: 0
+  num_molecules: 3
+  diffusion_num_steps: 20
+  diffusion_hidden_dim: 64
+  diffusion_num_layers: 2
+  sigma_min: 0.01
+  sigma_max: 1.0
+

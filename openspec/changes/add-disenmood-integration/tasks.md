@@ -64,6 +64,7 @@
     - Inputs: inputs/sample_config.yml
       Outputs: outputs/generated_molecules.smi
     - Verify: 输出包含至少一条 SMILES 且与 3D 坐标输出一一对应
+  BUNDLE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z | HOW_TO_RUN: run.sh/run.bat
 
 - [ ] 1.6 Document two-stage workflow and gate legacy 3D diffusion path [#R6]
   - ACCEPT: 文档或配置明确两阶段流程；旧 3D 扩散路径在 DisenMoOD 模式下被禁用（无回退路径）。
