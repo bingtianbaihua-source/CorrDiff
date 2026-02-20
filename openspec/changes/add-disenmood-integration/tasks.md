@@ -24,6 +24,7 @@
     - Inputs: inputs/latent_mode_config.yml
       Outputs: outputs/latent_batch.npz
     - Verify: 输出包含 z_shared 与至少一个 z_pi，形状与配置一致，日志打印所选模式
+  BUNDLE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z | HOW_TO_RUN: run.sh/run.bat
 
 - [ ] 1.3 Integrate BranchDiffusion into main training loop [#R3]
   - ACCEPT: `scripts/train_diffusion_joint.py` 在 DisenMoOD 模式下使用 BranchDiffusion 计算潜空间扩散 loss，不再对 3D 坐标直接加噪。
