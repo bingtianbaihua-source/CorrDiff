@@ -7,7 +7,7 @@
       "task": "1.1",
       "description": "VAE pretraining entrypoint (scripts/train_vae.py or equivalent + config example; completes one epoch on small subset and writes checkpoint)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R2",

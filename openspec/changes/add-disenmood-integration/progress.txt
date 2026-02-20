@@ -51,3 +51,46 @@ Retry decision: ATTEMPT=1 < MAX_ATTEMPTS=2 => retry Attempt #2 with UNBLOCK GUID
 [Tool Use] <bash - bash run.sh> EXIT_CODE=1
 [Supervisor] FAIL: ModuleNotFoundError: No module named 'models'. Root cause: Python sys.path[0]=scripts/ not repo root. Fix: set PYTHONPATH or add sys.path.insert in train_vae.py. Recording FAIL evidence, adding UNBLOCK GUIDANCE, dispatching Attempt #2.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T05:30:00Z     Run: #2     Attempt: 2
+Change: add-disenmood-integration         Task: 1.1   Ref: R1
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 285239f "[openspec] task-1.1 R1 PASS: DisentangledVAE pretraining entrypoint (train_vae.py + vae_toy_config)"
+- Diffstat (short): 22 files changed, 963 insertions(+)
+- Key files: scripts/train_vae.py, configs/vae_toy_config.yml, auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #2) under task 1.1 — RESULT: PASS | GIT_COMMIT: 285239f
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/logs/worker_startup.txt
+- auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/ — validation bundle
+- feature_list.json: ref=R1 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#2 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0002__task-1.1__ref-R1__20260220T050000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT: "OK: checkpoint contains encoder_state_dict + decoder_state_dict"
+- PYTHONPATH fix: run.sh exports PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}" before python call
+
+Changes verified:
+- scripts/train_vae.py (240 lines): standalone DisentangledVAE pretraining entrypoint
+- configs/vae_toy_config.yml: minimal toy config (1 epoch, 6 samples, hidden_dim=16)
+- outputs/vae_checkpoint.pt: verified contains encoder_state_dict + decoder_state_dict
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker Attempt #2 for task 1.1 [#R1] with UNBLOCK GUIDANCE: fix PYTHONPATH in run.sh.
+[Tool Use] <task - spawn codex-worker subagent (Attempt #2)>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Updated run.sh with PYTHONPATH fix. Created run-0002 bundle. Added BUNDLE (RUN #2) line in tasks.md. Worker startup log captured. Governance: no checkboxes toggled, no EVIDENCE, no git commits, feature_list.json untouched.
+[Tool Use] <bash - bash run-0002.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: "OK: checkpoint contains encoder_state_dict + decoder_state_dict". Writing EVIDENCE (RUN #2), updating feature_list.json R1 passes=true, creating checkpoint commit 285239f, appending runs.log, toggling checkbox [x].
+================================================================================
