@@ -138,3 +138,49 @@ Changes verified:
 [Tool Use] <bash - bash run-0003.../run.sh> EXIT_CODE=0
 [Supervisor] PASS: "Latent encoding mode: offline / OK: latent_batch.npz contains z_shared and z_pi_*". Writing EVIDENCE (RUN #3), updating feature_list.json R2 passes=true, creating checkpoint commit 95f597c, appending runs.log, toggling checkbox [x].
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T07:30:00Z     Run: #4     Attempt: 1
+Change: add-disenmood-integration         Task: 1.3   Ref: R3
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 17ca33d "[openspec] task-1.3 R3 PASS: BranchDiffusion latent diffusion in DisenMoOD mode (train_disenmood.py)"
+- Diffstat (short): 11 files changed, 455 insertions(+), 50 deletions(-)
+- Key files: scripts/train_diffusion_joint.py (modified), auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #4) under task 1.3 — RESULT: PASS | GIT_COMMIT: 17ca33d
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/logs/worker_startup.txt
+- feature_list.json: ref=R3 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#4 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT:
+  [INFO] Skipping 3D coordinate diffusion (DisenMoOD mode)
+  [INFO] DisenMoOD mode: using BranchDiffusion for latent diffusion, skipping 3D coordinate noise
+  [INFO] Wrote step metrics JSON: .../outputs/train_step_metrics.json
+  Skipping 3D coordinate diffusion (DisenMoOD mode)
+  DisenMoOD mode: using BranchDiffusion for latent diffusion, skipping 3D coordinate noise
+  OK: metrics JSON contains latent_diffusion_loss
+
+Changes verified:
+- scripts/train_diffusion_joint.py: disenmood_mode flag; latent_diffusion_loss; 3D noise path gated
+- outputs/train_step_metrics.json: {"latent_diffusion_loss": <float>, "mode": "disenmood"}
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.3 [#R3]: integrate BranchDiffusion into training loop.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Modified scripts/train_diffusion_joint.py + created run-0004 bundle. BUNDLE (RUN #4) line added under task 1.3. Governance clean (GIT_BASE=bc043a5).
+[Tool Use] <bash - bash run-0004.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: DisenMoOD mode confirmed, latent_diffusion_loss in JSON. Writing EVIDENCE (RUN #4), R3 passes=true, commit 17ca33d, runs.log updated, checkbox [x].
+================================================================================

@@ -27,7 +27,7 @@
   BUNDLE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #3): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0003__task-1.2__ref-R2__20260220T060000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 95f597c | COMMIT_MSG: "[openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility" | DIFFSTAT: "14 files changed, 684 insertions(+)"
 
-- [ ] 1.3 Integrate BranchDiffusion into main training loop [#R3]
+- [x] 1.3 Integrate BranchDiffusion into main training loop [#R3]
   - ACCEPT: `scripts/train_diffusion_joint.py` 在 DisenMoOD 模式下使用 BranchDiffusion 计算潜空间扩散 loss，不再对 3D 坐标直接加噪。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -37,6 +37,7 @@
       Outputs: outputs/train_step_metrics.json
     - Verify: 输出包含 latent_diffusion_loss 字段且训练日志明确跳过 3D 坐标扩散路径
   BUNDLE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 17ca33d | COMMIT_MSG: "[openspec] task-1.3 R3 PASS: BranchDiffusion latent diffusion in DisenMoOD mode (train_disenmood.py)" | DIFFSTAT: "11 files changed, 455 insertions(+), 50 deletions(-)"
 
 - [ ] 1.4 Implement latent decode to 3D coordinates and SMILES export helper [#R4]
   - ACCEPT: `DisentangledVAE.decode()`（或等价路径）可返回 3D 坐标与原子类型（重建所需），并提供可导出 SMILES 的辅助函数（优先复用 `utils/reconstruct.py`）。

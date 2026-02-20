@@ -21,7 +21,7 @@
       "task": "1.3",
       "description": "BranchDiffusion integrated into main training loop (scripts/train_diffusion_joint.py in DisenMoOD mode; uses latent-space diffusion; skips 3D coordinate noise)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R4",
