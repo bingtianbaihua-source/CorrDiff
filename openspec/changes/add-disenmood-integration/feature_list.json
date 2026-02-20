@@ -42,7 +42,7 @@
       "task": "1.6",
       "description": "Two-stage workflow documented and legacy 3D diffusion path gated (DisenMoOD mode disables legacy path; no fallback route)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R7",

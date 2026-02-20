@@ -67,7 +67,7 @@
   BUNDLE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z | HOW_TO_RUN: run.sh/run.bat
   EVIDENCE (RUN #7): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0007__task-1.5__ref-R5__20260220T100000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: afb8c12 | COMMIT_MSG: "[openspec] task-1.5 R5 PASS: sampling pipeline decodes latents to 3D + SMILES (sample_disenmood.py)" | DIFFSTAT: "13 files changed, 573 insertions(+)"
 
-- [ ] 1.6 Document two-stage workflow and gate legacy 3D diffusion path [#R6]
+- [x] 1.6 Document two-stage workflow and gate legacy 3D diffusion path [#R6]
   - ACCEPT: 文档或配置明确两阶段流程；旧 3D 扩散路径在 DisenMoOD 模式下被禁用（无回退路径）。
   - TEST: SCOPE: CLI
     - When done, generate validation bundle under:
@@ -77,6 +77,7 @@
       Outputs: outputs/workflow_summary.txt
     - Verify: 文档/配置中包含两阶段步骤与 DisenMoOD 开关说明
   BUNDLE (RUN #8): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z | HOW_TO_RUN: run.sh/run.bat
+  EVIDENCE (RUN #8): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z | WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z/logs/worker_startup.txt | VALIDATED_CLI: bash auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z/run.sh | EXIT_CODE: 0 | RESULT: PASS | GIT_COMMIT: 9bb5269 | COMMIT_MSG: "[openspec] task-1.6 R6 PASS: two-stage workflow docs + legacy 3D path gated (disenmood_workflow.md)" | DIFFSTAT: "10 files changed, 564 insertions(+)"
 
 - [ ] 1.7 Define decoder output contract for reconstruction compatibility [#R7]
   - ACCEPT: 文档明确 `xyz` 与 `atomic_nums` 为必需字段，`aromatic`/`atom_affinity` 为可选字段；采样输出字段与 `utils.reconstruct.reconstruct_from_generated` 输入一致。

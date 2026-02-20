@@ -310,3 +310,45 @@ Changes verified:
 [Tool Use] <bash - bash run-0007.../run.sh> EXIT_CODE=0
 [Supervisor] PASS: 3 SMILES lines + 3D coords 1-to-1. Writing EVIDENCE (RUN #7), R5 passes=true, commit afb8c12.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T11:30:00Z     Run: #8     Attempt: 1
+Change: add-disenmood-integration         Task: 1.6   Ref: R6
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 9bb5269 "[openspec] task-1.6 R6 PASS: two-stage workflow docs + legacy 3D path gated (disenmood_workflow.md)"
+- Diffstat (short): 10 files changed, 564 insertions(+)
+- Key files: docs/disenmood_workflow.md, configs/train_config_disenmood.yml
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #8) under task 1.6 — RESULT: PASS | GIT_COMMIT: 9bb5269
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z/logs/worker_startup.txt
+- feature_list.json: ref=R6 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#8 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0008__task-1.6__ref-R6__20260220T110000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT: (silent pass) workflow_summary.txt verified all 4 checklist items
+- workflow_summary.txt contents: Stage 1 + Stage 2 steps, DisenMoOD switch, legacy path DISABLED
+
+Changes verified:
+- docs/disenmood_workflow.md: full two-stage workflow documentation
+- configs/train_config_disenmood.yml: disenmood_mode: true example config
+- outputs/workflow_summary.txt: verified stage_1, stage_2, disenmood_switch, legacy_disabled
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.6 [#R6]: document two-stage workflow + gate legacy path.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created docs/disenmood_workflow.md + configs/train_config_disenmood.yml + run-0008 bundle. BUNDLE (RUN #8) added. Governance clean (GIT_BASE=6999ff3).
+[Tool Use] <bash - bash run-0008.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: all 4 checklist items verified. Writing EVIDENCE (RUN #8), R6 passes=true, commit 9bb5269.
+================================================================================
