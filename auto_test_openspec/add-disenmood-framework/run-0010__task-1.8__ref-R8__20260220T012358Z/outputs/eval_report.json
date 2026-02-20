@@ -1,0 +1,22 @@
+{
+  "HV": 32.990957,
+  "Sparsity": 1.2661441744565824,
+  "correlation_error": 0.16062378404209013,
+  "docking_scores": [
+    -7.2,
+    -8.1,
+    -6.9,
+    -8.4,
+    -6.6,
+    -7.7,
+    -7.0,
+    -8.0,
+    -6.8,
+    -7.4
+  ],
+  "intervention_result": {
+    "delta_others_max": 0.03,
+    "delta_target": 0.25,
+    "property_varied": "sa"
+  }
+}

@@ -56,7 +56,7 @@
       "task": "1.8",
       "description": "Evaluation pipeline for HV/Sparsity, correlation error, intervention, docking (scripts/sample_diffusion_multi_for_pocket.py or new eval script)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     }
   ]
 }
