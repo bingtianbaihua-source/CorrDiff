@@ -352,3 +352,48 @@ Changes verified:
 [Tool Use] <bash - bash run-0008.../run.sh> EXIT_CODE=0
 [Supervisor] PASS: all 4 checklist items verified. Writing EVIDENCE (RUN #8), R6 passes=true, commit 9bb5269.
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T12:30:00Z     Run: #9     Attempt: 1
+Change: add-disenmood-integration         Task: 1.7   Ref: R7
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: a744b44 "[openspec] task-1.7 R7 PASS: decoder output contract (...)"
+- Diffstat (short): 9 files changed, 601 insertions(+)
+- Key files: docs/decode_contract.md, auto_test_openspec/add-disenmood-integration/run-0009__task-1.7__ref-R7__20260220T120000Z/
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #9) under task 1.7 — RESULT: PASS | GIT_COMMIT: a744b44
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0009__task-1.7__ref-R7__20260220T120000Z/logs/worker_startup.txt
+- feature_list.json: ref=R7 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#9 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0009__task-1.7__ref-R7__20260220T120000Z/run.sh
+- EXIT_CODE: 0
+- decode_contract_check.txt content:
+  REQUIRED: xyz CONFIRMED, atomic_nums CONFIRMED
+  OPTIONAL: aromatic, atom_affinity
+  RECONSTRUCTION_FN: utils.reconstruct.reconstruct_from_generated
+  RECONSTRUCTION_SIG: reconstruct_from_generated(xyz, atomic_nums, aromatic, atom_affinity, basic_mode)
+  COMPATIBILITY: PASS
+
+Changes verified:
+- docs/decode_contract.md: full contract documentation
+- check_decode_contract.py: verifies DisentangledVAE.decode() fields + reconstruct_from_generated signature
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.7 [#R7]: define decoder output contract.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created docs/decode_contract.md + check_decode_contract.py + run-0009 bundle. BUNDLE (RUN #9) added. Governance clean (GIT_BASE=4450dce).
+[Tool Use] <bash - bash run-0009.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: xyz/atomic_nums required confirmed, aromatic/atom_affinity optional documented, reconstruct_from_generated compatible. Writing EVIDENCE (RUN #9), R7 passes=true, commit a744b44.
+================================================================================

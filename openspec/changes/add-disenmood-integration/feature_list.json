@@ -49,7 +49,7 @@
       "task": "1.7",
       "description": "Decoder output contract defined (xyz and atomic_nums required fields; aromatic/atom_affinity optional; fields aligned with utils.reconstruct.reconstruct_from_generated input)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     }
   ]
 }
