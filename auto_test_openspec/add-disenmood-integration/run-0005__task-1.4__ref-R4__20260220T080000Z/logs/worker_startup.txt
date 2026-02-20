@@ -1,0 +1,36 @@
+WORKER_STARTUP SNAPSHOT
+Change: add-disenmood-integration
+Task: 1.4
+Ref: R4
+Run folder: auto_test_openspec/add-disenmood-integration/run-0005__task-1.4__ref-R4__20260220T080000Z/
+Timestamp (UTC): 2026-02-20T08:00:00Z
+
+GIT_BASE (git rev-parse --short HEAD): 4afe066
+
+==== git log --oneline -20 ====
+4afe066 [openspec] task-1.3 R3 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+17ca33d [openspec] task-1.3 R3 PASS: BranchDiffusion latent diffusion in DisenMoOD mode (train_disenmood.py)
+bc043a5 [openspec] task-1.2 R2 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+95f597c [openspec] task-1.2 R2 PASS: latent encoding path (offline/online) + LatentCache utility
+027b9e2 [openspec] task-1.1 R1 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+285239f [openspec] task-1.1 R1 PASS: DisentangledVAE pretraining entrypoint (train_vae.py + vae_toy_config)
+c5047aa 功能1
+7a1c654 [openspec] task-1.8 R8 PASS: DisenMoOD evaluation pipeline (HV/Sparsity/corr_error/intervention/docking)
+84b9936 [openspec] task-1.8 R8 BLOCKED: codex exec denied by sandbox (session exit)
+15eec50 [openspec] task-1.7 R7 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+c4e2a40 [openspec] task-1.7 R7 PASS: ExpertPredictorEvaluator R2 during training
+24c0ab0 [openspec] task-1.6 R6 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+e4445b2 [openspec] task-1.6 R6 PASS: CorrelationAwareMOGuidance with Pareto selection
+278185c [openspec] task-1.5 R5 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+63bdd87 [openspec] task-1.5 R5 PASS: GuidedBranchSampler training-free energy guidance
+c49dca1 [openspec] task-1.4 R4 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+85b0530 [openspec] task-1.4 R4 PASS: CorrelationMatrixModule with gated branch interaction
+33f81b5 [openspec] task-1.3 R3 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+c7836f6 [openspec] task-1.3 R3 PASS: BranchDiffusion backbone-branch latent diffusion
+f6de830 [openspec] task-1.2 R2 bookkeeping: EVIDENCE + feature_list + progress + runs.log
+
+==== openspec/changes/add-disenmood-integration/progress.txt (head) ====
+(see repo file; not duplicated here)
+
+==== openspec/changes/add-disenmood-integration/feature_list.json ====
+(see repo file; not duplicated here)

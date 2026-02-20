@@ -700,6 +700,22 @@ class DisentangledVAE(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
         )
 
+        decoder_num_atoms = int(_cfg_get(config, "decoder_num_atoms", 8))
+        if decoder_num_atoms <= 0:
+            raise ValueError(f"decoder_num_atoms must be positive, got: {decoder_num_atoms}")
+        self.decoder_num_atoms = decoder_num_atoms
+
+        decoder_atom_types = _cfg_get(config, "decoder_atom_types", [6, 7, 8, 9, 15, 16, 17])
+        if not isinstance(decoder_atom_types, (list, tuple)) or len(decoder_atom_types) == 0:
+            raise TypeError("decoder_atom_types must be a non-empty list/tuple of atomic numbers")
+        decoder_atom_types = [int(x) for x in decoder_atom_types]
+        if any(x <= 0 for x in decoder_atom_types):
+            raise ValueError(f"decoder_atom_types must be positive atomic numbers, got: {decoder_atom_types}")
+        self.register_buffer("decoder_atom_nums", torch.tensor(decoder_atom_types, dtype=torch.long), persistent=False)
+
+        self.xyz_head = nn.Linear(hidden_dim, self.decoder_num_atoms * 3)
+        self.atom_logits_head = nn.Linear(hidden_dim, self.decoder_num_atoms * int(self.decoder_atom_nums.numel()))
+
         enable_corr = bool(_cfg_get(config, "enable_correlation_matrix", True))
         self.corr_threshold = float(_cfg_get(config, "corr_threshold", 0.5))
         self.corr_branch_interaction_strength = float(_cfg_get(config, "corr_branch_interaction_strength", 0.0))
@@ -907,3 +923,65 @@ class DisentangledVAE(nn.Module):
         if return_losses:
             out["losses"] = losses
         return out
+
+    def decode(self, z_shared, z_pi):
+        """
+        Decode latents into a simple ligand representation for reconstruction.
+
+        Args:
+            z_shared: (D_shared,) or (B, D_shared)
+            z_pi: either a tensor (D_pi,) / (B, D_pi) for single-property toy mode,
+                  or a dict[str, Tensor] mapping property name -> (B, D_pi)
+
+        Returns:
+            xyz: (N, 3) or (B, N, 3) float32 coordinates
+            atomic_nums: (N,) or (B, N) int64 atomic numbers
+        """
+        if not torch.is_tensor(z_shared):
+            z_shared = torch.as_tensor(z_shared)
+        if z_shared.dim() == 1:
+            z_shared = z_shared.unsqueeze(0)
+            squeeze_batch = True
+        elif z_shared.dim() == 2:
+            squeeze_batch = False
+        else:
+            raise ValueError(f"z_shared must be (D,) or (B, D), got: {tuple(z_shared.shape)}")
+
+        if isinstance(z_pi, dict):
+            pi_list = [z_pi[k] for k in sorted(z_pi.keys())]
+            if len(pi_list) == 0:
+                raise ValueError("z_pi dict is empty")
+            if not all(torch.is_tensor(t) for t in pi_list):
+                pi_list = [torch.as_tensor(t) for t in pi_list]
+        else:
+            if not torch.is_tensor(z_pi):
+                z_pi = torch.as_tensor(z_pi)
+            if z_pi.dim() == 1:
+                z_pi = z_pi.unsqueeze(0)
+            if z_pi.dim() != 2:
+                raise ValueError(f"z_pi must be (D,) or (B, D) for tensor input, got: {tuple(z_pi.shape)}")
+            if len(self.property_names) != 1:
+                raise ValueError(
+                    "Tensor z_pi input is only supported when the VAE has exactly one property; "
+                    f"got property_names={self.property_names!r}"
+                )
+            pi_list = [z_pi]
+
+        batch_size = int(z_shared.shape[0])
+        for idx, t in enumerate(pi_list):
+            if t.dim() != 2:
+                raise ValueError(f"z_pi[{idx}] must be (B, D), got: {tuple(t.shape)}")
+            if int(t.shape[0]) != batch_size:
+                raise ValueError("z_shared and z_pi batch sizes must match")
+
+        z_concat = torch.cat([z_shared] + pi_list, dim=-1)
+        h = self.decoder(z_concat)
+
+        xyz = self.xyz_head(h).view(batch_size, self.decoder_num_atoms, 3).to(dtype=torch.float32)
+        atom_logits = self.atom_logits_head(h).view(batch_size, self.decoder_num_atoms, -1)
+        atom_type_idx = atom_logits.argmax(dim=-1)
+        atomic_nums = self.decoder_atom_nums[atom_type_idx].to(dtype=torch.long)
+
+        if squeeze_batch:
+            return xyz[0], atomic_nums[0]
+        return xyz, atomic_nums

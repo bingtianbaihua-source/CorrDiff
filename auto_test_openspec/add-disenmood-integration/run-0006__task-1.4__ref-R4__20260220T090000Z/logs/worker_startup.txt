@@ -1,0 +1,29 @@
+WORKER_STARTUP
+UTC_TS: 2026-02-20T09:00:00Z
+CWD: /Users/mac/Downloads/code/project/CorrDiff
+CHANGE_ID: add-disenmood-integration
+TASK_ID: 1.4
+REF: R4
+RUN_NUMBER: 6
+ATTEMPT: 2 of 2
+
+STARTUP_RITUAL
+
+[1] openspec/changes/add-disenmood-integration/progress.txt (head)
+$(python - <<'PY'
+from pathlib import Path
+p=Path('openspec/changes/add-disenmood-integration/progress.txt')
+text=p.read_text(encoding='utf-8', errors='replace').splitlines()
+for line in text[:25]:
+    print(line)
+PY
+)
+
+[2] openspec/changes/add-disenmood-integration/feature_list.json
+$(cat openspec/changes/add-disenmood-integration/feature_list.json)
+
+[3] git log --oneline -20
+$(git log --oneline -20)
+
+[4] GIT_BASE (git rev-parse --short HEAD)
+4afe066
