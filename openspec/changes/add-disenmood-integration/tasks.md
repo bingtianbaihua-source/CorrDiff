@@ -36,6 +36,7 @@
     - Inputs: inputs/train_config_disenmood.yml
       Outputs: outputs/train_step_metrics.json
     - Verify: 输出包含 latent_diffusion_loss 字段且训练日志明确跳过 3D 坐标扩散路径
+  BUNDLE (RUN #4): CODEX_CMD=codex exec --full-auto --skip-git-repo-check --model gpt-5.2 -c model_reasoning_effort=medium | SCOPE: CLI | VALIDATION_BUNDLE: auto_test_openspec/add-disenmood-integration/run-0004__task-1.3__ref-R3__20260220T070000Z | HOW_TO_RUN: run.sh/run.bat
 
 - [ ] 1.4 Implement latent decode to 3D coordinates and SMILES export helper [#R4]
   - ACCEPT: `DisentangledVAE.decode()`（或等价路径）可返回 3D 坐标与原子类型（重建所需），并提供可导出 SMILES 的辅助函数（优先复用 `utils/reconstruct.py`）。

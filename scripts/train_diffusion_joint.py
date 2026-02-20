@@ -2,71 +2,158 @@ import os
 import sys
 import argparse
 import shutil
+import json
 import numpy as np
-import pandas as pd
 import torch
 import torch.utils.tensorboard
-import seaborn as sns
-# sns.set_theme(style="darkgrid")
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score
-from scipy import stats
 from torch.nn.utils import clip_grad_norm_
-from torch_geometric.loader import DataLoader
-from torch_geometric.transforms import Compose
-from torch.nn.parallel import DataParallel
-from tqdm.auto import tqdm
-import sys
+
 sys.path.append(os.path.abspath("/data2/zhoujingyuan/MoC"))
 import utils.misc as misc
-import utils.train as utils_train
-import utils.transforms as trans
-
-from datasets import get_dataset
-from datasets.pl_data import FOLLOW_BATCH
-from models.molopt_score_model import MINIMAL_PROPERTY_SET, ScorePosNet3D_Multi, compute_r2
+from models.guide_model import DisentangledVAE
+from models.molopt_score_model import BranchDiffusion
 
 
 def get_pearsonr(y_true, y_pred):
+    from scipy import stats
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
     return stats.pearsonr(y_true, y_pred)
 
-def _compute_expert_r2_from_batch(*, batch, results) -> dict:
-    r2: dict = {k: "N/A" for k in MINIMAL_PROPERTY_SET}
+def _make_toy_disenmood_batch(
+    *,
+    batch_size: int,
+    n_protein_atoms: int,
+    n_ligand_atoms: int,
+    protein_feat_dim: int,
+    ligand_feat_dim: int,
+    device,
+) -> dict:
+    if batch_size < 1:
+        raise ValueError(f"batch_size must be >= 1, got {batch_size}")
 
-    mapping = {
-        "affinity": ("affinity", "pred_exp"),
-        "QED": ("qed", "pred_qed"),
-        "SA": ("sa", "pred_sa"),
-        "lipinski": ("lipinski", "pred_lipinski"),
-        "logP": ("logp", "pred_logp"),
+    protein_pos = torch.randn(batch_size * n_protein_atoms, 3, device=device)
+    ligand_pos = torch.randn(batch_size * n_ligand_atoms, 3, device=device)
+    protein_feat = torch.randn(batch_size * n_protein_atoms, protein_feat_dim, device=device)
+    ligand_feat = torch.randn(batch_size * n_ligand_atoms, ligand_feat_dim, device=device)
+
+    batch_protein = (
+        torch.arange(batch_size, device=device).repeat_interleave(n_protein_atoms).long()
+    )
+    batch_ligand = torch.arange(batch_size, device=device).repeat_interleave(n_ligand_atoms).long()
+
+    return {
+        "protein_pos": protein_pos,
+        "protein_feat": protein_feat,
+        "ligand_pos": ligand_pos,
+        "ligand_feat": ligand_feat,
+        "batch_protein": batch_protein,
+        "batch_ligand": batch_ligand,
     }
-    for prop, (true_attr, pred_key) in mapping.items():
-        if not hasattr(batch, true_attr):
-            continue
-        if pred_key not in results:
-            continue
-        y_true = getattr(batch, true_attr)
-        y_pred = results[pred_key]
-        try:
-            v = compute_r2(y_true, y_pred)
-        except Exception:
-            v = None
-        r2[prop] = "N/A" if v is None else float(v)
-
-    return r2
 
 
-def _format_expert_r2(r2: dict) -> str:
-    parts = []
-    for k in MINIMAL_PROPERTY_SET:
-        v = r2.get(k, "N/A")
-        if isinstance(v, (float, int, np.floating, np.integer)):
-            parts.append(f"{k}={float(v):.4f}")
-        else:
-            parts.append(f"{k}=N/A")
-    return "{" + ", ".join(parts) + "}"
+def _latent_denoising_loss(*, score_net, x0: torch.Tensor, t: torch.Tensor, sigma: torch.Tensor) -> torch.Tensor:
+    noise = torch.randn_like(x0)
+    x_t = x0 + sigma * noise
+    pred = score_net(x_t, t)
+    target = -(noise / sigma)
+    return (pred - target).pow(2).mean()
+
+
+def _run_disenmood_one_step(*, config, args, logger) -> dict:
+    from utils.latent_cache import encode_batch_latents
+
+    device = torch.device(args.device)
+    seed = int(getattr(config.train, "seed", 0))
+    misc.seed_all(seed)
+
+    disenmood_cfg = getattr(getattr(config, "model", {}), "disenmood", {})
+    vae_cfg = getattr(disenmood_cfg, "vae", {})
+    bd_cfg = getattr(disenmood_cfg, "branch_diffusion", {})
+
+    property_names = list(getattr(vae_cfg, "property_names", ["affinity", "qed", "sa"]))
+
+    toy_cfg = getattr(config, "toy", {})
+    protein_atom_feature_dim = int(getattr(toy_cfg, "protein_atom_feature_dim", 8))
+    ligand_atom_feature_dim = int(getattr(toy_cfg, "ligand_atom_feature_dim", 8))
+    n_protein_atoms = int(getattr(toy_cfg, "n_protein_atoms", 4))
+    n_ligand_atoms = int(getattr(toy_cfg, "n_ligand_atoms", 5))
+    batch_size = int(getattr(config.train, "batch_size", 2))
+
+    vae = DisentangledVAE(
+        vae_cfg,
+        protein_atom_feature_dim=protein_atom_feature_dim,
+        ligand_atom_feature_dim=ligand_atom_feature_dim,
+    ).to(device)
+    vae.eval()
+
+    bd = BranchDiffusion(
+        z_shared_dim=int(getattr(vae, "z_shared_dim", 32)),
+        z_pi_dim=int(getattr(vae, "z_pi_dim", 16)),
+        property_names=property_names,
+        num_steps=int(getattr(bd_cfg, "num_steps", 50)),
+        time_emb_dim=int(getattr(bd_cfg, "time_emb_dim", 64)),
+        hidden_dim=int(getattr(bd_cfg, "hidden_dim", 128)),
+        num_layers=int(getattr(bd_cfg, "num_layers", 2)),
+        sigma_min=float(getattr(bd_cfg, "sigma_min", 0.01)),
+        sigma_max=float(getattr(bd_cfg, "sigma_max", 1.0)),
+        device=device,
+    )
+
+    optimizer = torch.optim.Adam(bd.parameters(), lr=float(getattr(config.train, "lr", 1e-3)))
+    optimizer.zero_grad(set_to_none=True)
+
+    batch = _make_toy_disenmood_batch(
+        batch_size=batch_size,
+        n_protein_atoms=n_protein_atoms,
+        n_ligand_atoms=n_ligand_atoms,
+        protein_feat_dim=protein_atom_feature_dim,
+        ligand_feat_dim=ligand_atom_feature_dim,
+        device=device,
+    )
+
+    with torch.no_grad():
+        z_shared, z_pi_list = encode_batch_latents(
+            vae=vae, batch=batch, property_names=property_names, device=device
+        )
+
+    num_steps = int(bd.num_steps)
+    t = torch.randint(low=0, high=num_steps, size=(batch_size,), device=device, dtype=torch.long)
+    sigma = bd.sigmas[t].view(-1, 1).to(device)
+
+    loss_shared = _latent_denoising_loss(score_net=bd.backbone, x0=z_shared, t=t, sigma=sigma)
+    loss_pi = []
+    for name, zpi in zip(property_names, z_pi_list):
+        loss_pi.append(_latent_denoising_loss(score_net=bd.branches[name], x0=zpi, t=t, sigma=sigma))
+    if len(loss_pi) > 0:
+        loss_pi = torch.stack(loss_pi).mean()
+    else:
+        loss_pi = loss_shared.new_zeros(())
+
+    latent_diffusion_loss = loss_shared + loss_pi
+    latent_diffusion_loss.backward()
+    optimizer.step()
+
+    logger.info("Skipping 3D coordinate diffusion (DisenMoOD mode)")
+    logger.info(
+        "DisenMoOD mode: using BranchDiffusion for latent diffusion, skipping 3D coordinate noise"
+    )
+    print("Skipping 3D coordinate diffusion (DisenMoOD mode)")
+    print("DisenMoOD mode: using BranchDiffusion for latent diffusion, skipping 3D coordinate noise")
+
+    metrics = {
+        "mode": "disenmood",
+        "latent_diffusion_loss": float(latent_diffusion_loss.detach().cpu().item()),
+    }
+
+    metrics_path = getattr(config.train, "step_metrics_path", "outputs/train_step_metrics.json")
+    metrics_path = os.path.abspath(metrics_path)
+    os.makedirs(os.path.dirname(metrics_path) or ".", exist_ok=True)
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+        f.write("\n")
+    logger.info("Wrote step metrics JSON: %s", metrics_path)
+    return metrics
 
 
 def main():
@@ -91,6 +178,63 @@ def main():
         # Load configs
         config = misc.load_config(args.config)
     config_name = os.path.basename(args.config)[:os.path.basename(args.config).rfind('.')]
+    disenmood_mode = bool(getattr(config, "disenmood_mode", False))
+
+    if disenmood_mode:
+        logger = misc.get_logger("train_disenmood", log_dir=None)
+        _run_disenmood_one_step(config=config, args=args, logger=logger)
+        return
+
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_auc_score
+    from torch_geometric.loader import DataLoader
+    from torch_geometric.transforms import Compose
+    from tqdm.auto import tqdm
+
+    import utils.train as utils_train
+    import utils.transforms as trans
+
+    from datasets import get_dataset
+    from datasets.pl_data import FOLLOW_BATCH
+    from models.molopt_score_model import MINIMAL_PROPERTY_SET, ScorePosNet3D_Multi, compute_r2
+
+    def _compute_expert_r2_from_batch(*, batch, results) -> dict:
+        r2: dict = {k: "N/A" for k in MINIMAL_PROPERTY_SET}
+
+        mapping = {
+            "affinity": ("affinity", "pred_exp"),
+            "QED": ("qed", "pred_qed"),
+            "SA": ("sa", "pred_sa"),
+            "lipinski": ("lipinski", "pred_lipinski"),
+            "logP": ("logp", "pred_logp"),
+        }
+        for prop, (true_attr, pred_key) in mapping.items():
+            if not hasattr(batch, true_attr):
+                continue
+            if pred_key not in results:
+                continue
+            y_true = getattr(batch, true_attr)
+            y_pred = results[pred_key]
+            try:
+                v = compute_r2(y_true, y_pred)
+            except Exception:
+                v = None
+            r2[prop] = "N/A" if v is None else float(v)
+
+        return r2
+
+    def _format_expert_r2(r2: dict) -> str:
+        parts = []
+        for k in MINIMAL_PROPERTY_SET:
+            v = r2.get(k, "N/A")
+            if isinstance(v, (float, int, np.floating, np.integer)):
+                parts.append(f"{k}={float(v):.4f}")
+            else:
+                parts.append(f"{k}=N/A")
+        return "{" + ", ".join(parts) + "}"
+
     misc.seed_all(config.train.seed)
 
     # Logging
