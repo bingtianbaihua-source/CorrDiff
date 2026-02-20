@@ -1,0 +1,55 @@
+{
+  "change_id": "add-disenmood-integration",
+  "description": "DisenMoOD Integration: Two-stage training workflow (DisentangledVAE pretraining + BranchDiffusion latent diffusion)",
+  "features": [
+    {
+      "ref": "R1",
+      "task": "1.1",
+      "description": "VAE pretraining entrypoint (scripts/train_vae.py or equivalent + config example; completes one epoch on small subset and writes checkpoint)",
+      "scope": "CLI",
+      "passes": false
+    },
+    {
+      "ref": "R2",
+      "task": "1.2",
+      "description": "Latent encoding path for BranchDiffusion training (offline cache default; online encode optional switch; training log shows selected mode)",
+      "scope": "CLI",
+      "passes": false
+    },
+    {
+      "ref": "R3",
+      "task": "1.3",
+      "description": "BranchDiffusion integrated into main training loop (scripts/train_diffusion_joint.py in DisenMoOD mode; uses latent-space diffusion; skips 3D coordinate noise)",
+      "scope": "CLI",
+      "passes": false
+    },
+    {
+      "ref": "R4",
+      "task": "1.4",
+      "description": "Latent decode to 3D coordinates and SMILES export helper (DisentangledVAE.decode() returns xyz + atomic_nums; SMILES export via utils/reconstruct.py or equivalent)",
+      "scope": "CLI",
+      "passes": false
+    },
+    {
+      "ref": "R5",
+      "task": "1.5",
+      "description": "Sampling pipeline updated to decode generated latents (BranchDiffusion z_shared/{z_pi} → decode → 3D + SMILES via reconstruction path)",
+      "scope": "CLI",
+      "passes": false
+    },
+    {
+      "ref": "R6",
+      "task": "1.6",
+      "description": "Two-stage workflow documented and legacy 3D diffusion path gated (DisenMoOD mode disables legacy path; no fallback route)",
+      "scope": "CLI",
+      "passes": false
+    },
+    {
+      "ref": "R7",
+      "task": "1.7",
+      "description": "Decoder output contract defined (xyz and atomic_nums required fields; aromatic/atom_affinity optional; fields aligned with utils.reconstruct.reconstruct_from_generated input)",
+      "scope": "CLI",
+      "passes": false
+    }
+  ]
+}

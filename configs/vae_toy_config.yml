@@ -1,0 +1,36 @@
+device: cpu
+
+data:
+  num_samples: 6
+  num_protein_atoms: 3
+  num_ligand_atoms: 2
+  protein_atom_feature_dim: 4
+  ligand_atom_feature_dim: 4
+
+model:
+  hidden_dim: 16
+  z_shared_dim: 4
+  z_pi_dim: 2
+  property_names: ["affinity", "qed"]
+  beta_kl: 0.1
+  tc_weight: 0.01
+  mi_weight: 0.01
+
+  num_layers: 1
+  edge_feat_dim: 4
+  num_r_gaussian: 20
+  knn: 2
+  r_max: 5.0
+  cutoff_mode: knn
+  act_fn: silu
+  norm: false
+  update_x: false
+
+  enable_correlation_matrix: false
+
+train:
+  seed: 123
+  epochs: 1
+  batch_size: 2
+  lr: 1.0e-3
+  weight_decay: 0.0
