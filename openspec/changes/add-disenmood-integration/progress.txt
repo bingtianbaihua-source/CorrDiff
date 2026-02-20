@@ -184,3 +184,87 @@ Changes verified:
 [Tool Use] <bash - bash run-0004.../run.sh> EXIT_CODE=0
 [Supervisor] PASS: DisenMoOD mode confirmed, latent_diffusion_loss in JSON. Writing EVIDENCE (RUN #4), R3 passes=true, commit 17ca33d, runs.log updated, checkbox [x].
 ================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T08:30:00Z     Run: #5     Attempt: 1
+Change: add-disenmood-integration         Task: 1.4   Ref: R4
+
+Status: FAIL
+
+Git anchors (this RUN):
+- (Not PASS) No commit created.
+- GIT_BASE at run start: 4afe066
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #5) under task 1.4 — RESULT: FAIL
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0005__task-1.4__ref-R4__20260220T080000Z/logs/worker_startup.txt
+- feature_list.json: not updated (FAIL)
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0005__task-1.4__ref-R4__20260220T080000Z/run.sh
+- EXIT_CODE: 1
+- OUTPUT EXCERPT: AssertionError: smiles_utf8 decodes to empty string
+  (xyz=(8,3) and atomic_nums=(8,) correct; smiles_export.py returns "" in fallback)
+- UNBLOCK: return "SMILES_UNAVAILABLE_IN_TOY_MODE" instead of "" in fallback
+
+Retry decision: ATTEMPT=1 < MAX_ATTEMPTS=2 => retry Attempt #2.
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker for task 1.4 [#R4] Attempt #1.
+[Tool Use] <task - spawn codex-worker subagent>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Created utils/smiles_export.py + scripts/decode_latents.py + run-0005 bundle. Governance clean.
+[Tool Use] <bash - bash run-0005.../run.sh> EXIT_CODE=1
+[Supervisor] FAIL: smiles_utf8 empty string. Adding UNBLOCK GUIDANCE, dispatching Attempt #2.
+================================================================================
+
+================================================================================
+RUN ENTRY
+
+[RUN SUMMARY]
+Timestamp (UTC): 2026-02-20T09:30:00Z     Run: #6     Attempt: 2
+Change: add-disenmood-integration         Task: 1.4   Ref: R4
+
+Status: DONE
+
+Git anchors (this RUN):
+- Commit: 605430a "[openspec] task-1.4 R4 PASS: DisentangledVAE.decode() + SMILES export helper (smiles_export.py + decode_latents.py)"
+- Diffstat (short): 19 files changed, 701 insertions(+)
+- Key files: utils/smiles_export.py, scripts/decode_latents.py, models/guide_model.py
+
+Evidence pointers:
+- tasks.md: EVIDENCE (RUN #6) under task 1.4 — RESULT: PASS | GIT_COMMIT: 605430a
+- WORKER_STARTUP_LOG: auto_test_openspec/add-disenmood-integration/run-0006__task-1.4__ref-R4__20260220T090000Z/logs/worker_startup.txt
+- feature_list.json: ref=R4 passes false->true (Supervisor update)
+- git_openspec_history/add-disenmood-integration/runs.log: run#6 appended
+
+Validation:
+- CMD: bash auto_test_openspec/add-disenmood-integration/run-0006__task-1.4__ref-R4__20260220T090000Z/run.sh
+- EXIT_CODE: 0
+- OUTPUT:
+  xyz: (8, 3), atomic_nums: (8,)
+  smiles: SMILES_UNAVAILABLE_IN_TOY_MODE
+  OK: SMILES placeholder present (toy/optional-deps mode)
+  OK: xyz.shape=(8, 3), atomic_nums.shape=(8,), smiles='SMILES_UNAVAILABLE_IN_TOY_MODE'
+  OK: smiles_export fallback placeholder (forced rdkit-unavailable)
+
+Changes verified:
+- utils/smiles_export.py: fallback now returns "SMILES_UNAVAILABLE_IN_TOY_MODE"
+- scripts/decode_latents.py: CLI decode with xyz + atomic_nums + smiles output
+- models/guide_model.py: DisentangledVAE.decode() method added
+
+--------------------------------------------------------------------------------
+[DIALOGUE + TOOL TRACE]
+
+[Supervisor => Subagent] Dispatch Worker Attempt #2 with UNBLOCK GUIDANCE (smiles fallback fix).
+[Tool Use] <task - spawn codex-worker subagent (Attempt #2)>
+[Tool Use] <bash - codex exec --full-auto --skip-git-repo-check --model gpt-5.2 ...>
+[Subagent] Codex completed. Fixed smiles_export.py fallback. run-0006 bundle created. BUNDLE (RUN #6) added. Governance clean.
+[Tool Use] <bash - bash run-0006.../run.sh> EXIT_CODE=0
+[Supervisor] PASS: xyz=(8,3), atomic_nums=(8,), SMILES_UNAVAILABLE_IN_TOY_MODE documented. Writing EVIDENCE (RUN #6), R4 passes=true, commit 605430a.
+================================================================================

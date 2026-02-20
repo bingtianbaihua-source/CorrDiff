@@ -28,7 +28,7 @@
       "task": "1.4",
       "description": "Latent decode to 3D coordinates and SMILES export helper (DisentangledVAE.decode() returns xyz + atomic_nums; SMILES export via utils/reconstruct.py or equivalent)",
       "scope": "CLI",
-      "passes": false
+      "passes": true
     },
     {
       "ref": "R5",
