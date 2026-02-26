@@ -1,5 +1,5 @@
 model:
-  all_ckpt: '/data2/zhoujingyuan/MoC/pretrained_models/checkpoint.pt'
+  all_ckpt: 'pretrained_models/checkpoint.pt'
 
 sample:
   seed: 2021  

@@ -8,7 +8,7 @@ import torch
 import torch.utils.tensorboard
 from torch.nn.utils import clip_grad_norm_
 
-sys.path.append(os.path.abspath("/data2/zhoujingyuan/MoC"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import utils.misc as misc
 from models.guide_model import DisentangledVAE
 from models.molopt_score_model import BranchDiffusion
@@ -514,9 +514,9 @@ def _run_disenmood_training(*, config, args) -> None:
 def main():
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/data2/zhoujingyuan/MoC/configs/joint_training.yml')
+    parser.add_argument('--config', type=str, default='configs/joint_training.yml')
     parser.add_argument('--device', type=str, default='cuda:0')
-    parser.add_argument('--logdir', type=str, default='/data2/zhoujingyuan/MoC/logs/train_multi_ckpt')
+    parser.add_argument('--logdir', type=str, default='logs/train_multi_ckpt')
     parser.add_argument('--ckpt', type=str, default='')
     parser.add_argument('--tag', type=str, default='')
     parser.add_argument('--value_only', action='store_true')

@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append('/data2/zhoujingyuan/MoC')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pickle
 import lmdb
@@ -70,22 +70,14 @@ class PocketLigandPairDataset(Dataset):
         return self._admet_model
 
     def _maybe_inject_admet_labels(self, sid, data: dict) -> dict:
-        updated = _populate_admet_aliases(data)
+        _populate_admet_aliases(data)
 
         missing = [k for k in REQUIRED_ADMET_ATTRIBUTES if k not in data or _is_missing_value(data.get(k))]
         if not missing:
-            if updated:
-                txn = self.db.begin(write=True)
-                txn.put(key=sid, value=pickle.dumps(data))
-                txn.commit()
             return data
 
         smiles = data.get("ligand_smiles", "")
         if not smiles:
-            if updated:
-                txn = self.db.begin(write=True)
-                txn.put(key=sid, value=pickle.dumps(data))
-                txn.commit()
             return data
 
         if smiles in self._admet_cache:
@@ -97,13 +89,8 @@ class PocketLigandPairDataset(Dataset):
         for k in missing:
             if k in props and not _is_missing_value(props.get(k)):
                 data[k] = props[k]
-                updated = True
 
-        if updated:
-            _populate_admet_aliases(data)
-            txn = self.db.begin(write=True)
-            txn.put(key=sid, value=pickle.dumps(data))
-            txn.commit()
+        _populate_admet_aliases(data)
         return data
             
     def _load_affinity_info(self):
@@ -141,7 +128,7 @@ class PocketLigandPairDataset(Dataset):
             map_size=10*(1024*1024*1024),   # 10GB
             create=False,
             subdir=False,
-            readonly=False,
+            readonly=True,
             lock=False,
             readahead=False,
             meminit=False,
@@ -198,10 +185,16 @@ class PocketLigandPairDataset(Dataset):
         return len(self.keys)
 
     def __getitem__(self, idx):
-        data = self.get_ori_data(idx)
-        if self.transform is not None:
-            data = self.transform(data)
-        return data
+        for offset in range(10):
+            try:
+                data = self.get_ori_data((idx + offset) % len(self))
+                if self.transform is not None:
+                    data = self.transform(data)
+                return data
+            except pickle.UnpicklingError:
+                if offset == 9:
+                    raise
+        raise RuntimeError(f"Could not load a valid entry near idx={idx}")
     
     def _update(self, sid, affinity):
         if self.db is None:
@@ -233,17 +226,20 @@ class PocketLigandPairDataset(Dataset):
         key = self.keys[idx]
         data = pickle.loads(self.db.begin().get(key))
         if 'affinity' not in data:
-            self._load_affinity_info()
-            self._inject_affinity(key, data['ligand_filename'])
-            data = pickle.loads(self.db.begin().get(key))
+            try:
+                self._load_affinity_info()
+                self._inject_affinity(key, data['ligand_filename'])
+                data = pickle.loads(self.db.begin().get(key))
+            except Exception:
+                pass  # DB is read-only; affinity will be absent for this entry
 
         data = self._maybe_inject_admet_labels(key, data)
-        
+
         data = ProteinLigandData(**data)
         data.id = idx
         assert data.protein_pos.size(0) > 0
         return data
-    
+
 class PocketLigandPairDataset_Chem(Dataset):
 
     def __init__(self, raw_path, transform=None, version='final'):
@@ -251,8 +247,8 @@ class PocketLigandPairDataset_Chem(Dataset):
         self.raw_path = raw_path.rstrip('/')
         self.index_path = os.path.join(self.raw_path, 'index_with_all_property.pkl')
         self.processed_path = 'data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final_with_all_property.lmdb' 
-        self.raw_affinity_path = os.path.join('/data2/zhoujingyuan/MoC/data', TYPES_FILENAME)
-        self.affinity_path = os.path.join('/data2/zhoujingyuan/MoC/data', 'affinity_info_complete.pkl')
+        self.raw_affinity_path = os.path.join(os.path.dirname(self.raw_path), TYPES_FILENAME)
+        self.affinity_path = os.path.join(os.path.dirname(self.raw_path), 'affinity_info_complete.pkl')
         self.transform = transform
         self.db = None
         self.keys = None
@@ -270,22 +266,14 @@ class PocketLigandPairDataset_Chem(Dataset):
         return self._admet_model
 
     def _maybe_inject_admet_labels(self, sid, data: dict) -> dict:
-        updated = _populate_admet_aliases(data)
+        _populate_admet_aliases(data)
 
         missing = [k for k in REQUIRED_ADMET_ATTRIBUTES if k not in data or _is_missing_value(data.get(k))]
         if not missing:
-            if updated:
-                txn = self.db.begin(write=True)
-                txn.put(key=sid, value=pickle.dumps(data))
-                txn.commit()
             return data
 
         smiles = data.get("ligand_smiles", "")
         if not smiles:
-            if updated:
-                txn = self.db.begin(write=True)
-                txn.put(key=sid, value=pickle.dumps(data))
-                txn.commit()
             return data
 
         if smiles in self._admet_cache:
@@ -297,13 +285,8 @@ class PocketLigandPairDataset_Chem(Dataset):
         for k in missing:
             if k in props and not _is_missing_value(props.get(k)):
                 data[k] = props[k]
-                updated = True
 
-        if updated:
-            _populate_admet_aliases(data)
-            txn = self.db.begin(write=True)
-            txn.put(key=sid, value=pickle.dumps(data))
-            txn.commit()
+        _populate_admet_aliases(data)
         return data
             
     def _load_affinity_info(self):
@@ -341,7 +324,7 @@ class PocketLigandPairDataset_Chem(Dataset):
             map_size=10*(1024*1024*1024),   # 10GB
             create=False,
             subdir=False,
-            readonly=False,
+            readonly=True,
             lock=False,
             readahead=False,
             meminit=False,
@@ -403,10 +386,16 @@ class PocketLigandPairDataset_Chem(Dataset):
         return len(self.keys)
 
     def __getitem__(self, idx):
-        data = self.get_ori_data(idx)
-        if self.transform is not None:
-            data = self.transform(data)
-        return data
+        for offset in range(10):
+            try:
+                data = self.get_ori_data((idx + offset) % len(self))
+                if self.transform is not None:
+                    data = self.transform(data)
+                return data
+            except pickle.UnpicklingError:
+                if offset == 9:
+                    raise
+        raise RuntimeError(f"Could not load a valid entry near idx={idx}")
     
     def _update(self, sid, affinity):
         if self.db is None:
@@ -438,12 +427,15 @@ class PocketLigandPairDataset_Chem(Dataset):
         key = self.keys[idx]
         data = pickle.loads(self.db.begin().get(key))
         if 'affinity' not in data:
-            self._load_affinity_info()
-            self._inject_affinity(key, data['ligand_filename'])
-            data = pickle.loads(self.db.begin().get(key))
+            try:
+                self._load_affinity_info()
+                self._inject_affinity(key, data['ligand_filename'])
+                data = pickle.loads(self.db.begin().get(key))
+            except Exception:
+                pass  # DB is read-only; affinity will be absent for this entry
 
         data = self._maybe_inject_admet_labels(key, data)
-        
+
         data = ProteinLigandData(**data)
         data.id = idx
         assert data.protein_pos.size(0) > 0

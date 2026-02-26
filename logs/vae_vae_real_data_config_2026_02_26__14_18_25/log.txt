@@ -1,0 +1,10 @@
+[2026-02-26 14:18:25,638::train_vae::INFO] Config: configs/vae_real_data_config.yml
+[2026-02-26 14:18:25,638::train_vae::INFO] Log dir: logs/vae_vae_real_data_config_2026_02_26__14_18_25
+[2026-02-26 14:18:25,638::train_vae::INFO] Loading dataset...
+[2026-02-26 14:18:26,745::train_vae::INFO]   protein_feat_dim=27  ligand_vocab_size=13
+[2026-02-26 14:18:26,745::train_vae::INFO]   train=99990  val=100
+[2026-02-26 14:18:26,746::train_vae::INFO] Building DisentangledVAE...
+[2026-02-26 14:18:27,024::train_vae::INFO]   Parameters: 0.63 M
+[2026-02-26 14:18:27,027::train_vae::INFO] Training for 100 epochs (start=0)
+[2026-02-26 14:26:22,282::train_vae::INFO] Interrupted — saving current state...
+[2026-02-26 14:26:22,298::train_vae::INFO] Final checkpoint saved: ckpt/vae.pt

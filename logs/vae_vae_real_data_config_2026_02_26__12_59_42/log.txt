@@ -1,0 +1,3 @@
+[2026-02-26 12:59:42,912::train_vae::INFO] Config: configs/vae_real_data_config.yml
+[2026-02-26 12:59:42,912::train_vae::INFO] Log dir: logs/vae_vae_real_data_config_2026_02_26__12_59_42
+[2026-02-26 12:59:42,912::train_vae::INFO] Loading dataset...

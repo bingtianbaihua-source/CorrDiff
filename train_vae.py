@@ -148,6 +148,31 @@ def _collate(samples: list[dict[str, Any]]) -> dict[str, Any]:
 
 # ── 真实数据模式 ──────────────────────────────────────────────────────────────
 
+def _lmdb_worker_init_fn(worker_id: int) -> None:
+    """Close the LMDB handle inherited from the main process after fork.
+
+    LMDB is not fork-safe: if the main process opens a DB handle (e.g. via
+    __len__) before DataLoader forks workers, each worker inherits the same
+    file descriptor and crashes with a segmentation fault.  This init function
+    closes the inherited handle so each worker reopens it lazily on first
+    __getitem__ access.
+    """
+    import torch.utils.data
+    worker_info = torch.utils.data.get_worker_info()
+    dataset = worker_info.dataset
+    # Traverse Subset / ConcatDataset wrappers used by torch_geometric
+    while hasattr(dataset, "dataset"):
+        dataset = dataset.dataset
+    if hasattr(dataset, "db") and dataset.db is not None:
+        try:
+            dataset.db.close()
+        except Exception:
+            pass
+        dataset.db = None
+    if hasattr(dataset, "keys"):
+        dataset.keys = None
+
+
 def _build_real_loaders(cfg: dict[str, Any], train_cfg: TrainConfig):
     """
     构建真实数据的 train / val DataLoader。
@@ -191,7 +216,11 @@ def _build_real_loaders(cfg: dict[str, Any], train_cfg: TrainConfig):
         raise ValueError(f"Unknown dataset: {data_cfg.name}")
 
     num_workers = int((cfg.get("train") or {}).get("num_workers", 4))
-    collate_excl = ["ligand_nbh_list"]
+    # rmsd / pk / rmsd<2 are affinity-injection metadata not used by the VAE;
+    # exclude them so batches with missing fields collate without error.
+    collate_excl = ["ligand_nbh_list", "rmsd", "pk", "rmsd<2"]
+
+    worker_init = _lmdb_worker_init_fn if num_workers > 0 else None
 
     train_loader = DataLoader(
         train_set,
@@ -201,6 +230,7 @@ def _build_real_loaders(cfg: dict[str, Any], train_cfg: TrainConfig):
         follow_batch=FOLLOW_BATCH,
         exclude_keys=collate_excl,
         drop_last=True,        # 保证 batch_size>=2，VAE 协方差惩罚才有意义
+        worker_init_fn=worker_init,
     )
     val_loader = DataLoader(
         val_set,
@@ -209,6 +239,7 @@ def _build_real_loaders(cfg: dict[str, Any], train_cfg: TrainConfig):
         num_workers=num_workers,
         follow_batch=FOLLOW_BATCH,
         exclude_keys=collate_excl,
+        worker_init_fn=worker_init,
     )
 
     protein_feat_dim: int = protein_featurizer.feature_dim
@@ -423,13 +454,16 @@ def _main_real(args, cfg, train_cfg, model_cfg, device) -> int:
     logger.info(f"Training for {epochs} epochs (start={start_epoch})")
 
     # ── 训练循环 ──────────────────────────────────────────────────────────────
+    from tqdm.auto import tqdm
+
     try:
         for epoch in range(start_epoch, epochs):
             model.train()
             total_loss = total_recon = total_tc = total_mi = 0.0
             n_batches = 0
 
-            for batch in train_loader:
+            pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False, dynamic_ncols=True)
+            for batch in pbar:
                 optimizer.zero_grad(set_to_none=True)
                 vae_inputs = _real_batch_to_vae_inputs(batch, device, ligand_vocab_size)
                 out = model(**vae_inputs, return_losses=True)
@@ -444,6 +478,9 @@ def _main_real(args, cfg, train_cfg, model_cfg, device) -> int:
                 total_tc += float(losses.get("tc_loss", 0))
                 total_mi += float(losses.get("mi_loss", 0))
                 n_batches += 1
+
+                pbar.set_postfix(loss=f"{float(loss):.4f}", recon=f"{float(losses.get('recon_loss', 0)):.4f}")
+            pbar.close()
 
             avg = lambda x: x / max(n_batches, 1)
             logger.info(

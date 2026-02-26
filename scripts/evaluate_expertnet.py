@@ -18,7 +18,7 @@ from torch_geometric.transforms import Compose
 from torch.nn.parallel import DataParallel
 from tqdm.auto import tqdm
 import sys
-sys.path.append(os.path.abspath("/data2/zhoujingyuan/MoC"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import utils.misc as misc
 import utils.train as utils_train
 import utils.transforms as trans

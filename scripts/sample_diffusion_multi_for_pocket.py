@@ -3,7 +3,7 @@ import os
 import shutil
 import time
 import sys
-sys.path.append("/data2/zhoujingyuan/MoC")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import numpy as np
 import torch
@@ -175,8 +175,8 @@ def list_of_strings(arg):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/data2/zhoujingyuan/MoC/configs/sampling.yml')
-    parser.add_argument('--pdb_path', type=str, default='/data2/zhoujingyuan/diffsbdd/testset/1BXM_bio1_ERG:A:99_pocket10.pdb')
+    parser.add_argument('--config', type=str, default='configs/sampling.yml')
+    parser.add_argument('--pdb_path', type=str, default='')
     parser.add_argument('--device', type=str, default='cuda:0')
     parser.add_argument('--batch_size', type=int, default=2) # 4
     parser.add_argument('--objective', type=list_of_strings, default='lipinski,qed,logp,affinity,sa')  # 'lipinski,qed,logp,affinity,sa'
@@ -185,7 +185,7 @@ def main():
     parser.add_argument('--w3', type=float, default=1.)
     parser.add_argument('--w4', type=float, default=1.)
     parser.add_argument('--w5', type=float, default=1.)
-    parser.add_argument('--result_path', type=str, default='/data2/zhoujingyuan/MoC')
+    parser.add_argument('--result_path', type=str, default='outputs')
     args = parser.parse_args()
         
     result_path = args.result_path

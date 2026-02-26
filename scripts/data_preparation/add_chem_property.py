@@ -12,7 +12,7 @@ from torch_geometric.transforms import Compose
 from tqdm.auto import tqdm
 from rdkit.Chem.QED import qed
 
-sys.path.append(os.path.abspath("/data2/zhoujingyuan/MoC"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import utils.misc as misc
 import utils.transforms as trans

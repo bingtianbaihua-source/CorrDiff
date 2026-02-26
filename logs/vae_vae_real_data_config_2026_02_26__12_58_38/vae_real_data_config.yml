@@ -30,7 +30,7 @@ data:
   name: pl_chem                        # pl_chem | pdbbind
   # ↓ 替换为实际路径
   path: data/crossdocked_v1.1_rmsd1.0_pocket10_processed_final_with_all_property.lmdb
-  split: data/crossdocked_pocket10_pose_split_all_property.pt
+  split: /data/crossdocked_pocket10_pose_split_all_property.pt
   transform:
     ligand_atom_mode: add_aromatic     # 决定 ligand_vocab_size=13
     random_rot: false

@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-sys.path.append("/data2/zhoujingyuan/MoC")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import numpy as np
 from rdkit import Chem
@@ -39,12 +39,12 @@ def print_ring_ratio(all_ring_sizes, logger):
 def main():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--sample_path', type=str, default='/data2/zhoujingyuan/MoC/outputs')
+    parser.add_argument('--sample_path', type=str, default='outputs')
     parser.add_argument('--verbose', type=eval, default=True)
     parser.add_argument('--eval_step', type=int, default=-1)
     parser.add_argument('--eval_num_examples', type=int, default=None)
     parser.add_argument('--save', type=eval, default=True)
-    parser.add_argument('--protein_root', type=str, default='/data2/zhoujingyuan/MoC/data/test_set')
+    parser.add_argument('--protein_root', type=str, default='data/test_set')
     parser.add_argument('--atom_enc_mode', type=str, default='add_aromatic')
     parser.add_argument('--docking_mode', type=str, default='vina_dock', choices=['qvina', 'vina_score', 'vina_dock', 'none'])
     parser.add_argument('--exhaustiveness', type=int, default=16)

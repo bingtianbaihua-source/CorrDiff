@@ -3,7 +3,7 @@ import os
 import shutil
 import time
 import sys
-sys.path.append("/data2/zhoujingyuan/MoC")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import numpy as np
 import torch
@@ -164,7 +164,7 @@ def main():
     parser.add_argument('--w3', type=float, default=1.)
     parser.add_argument('--w4', type=float, default=1.)
     parser.add_argument('--w5', type=float, default=1.)
-    parser.add_argument('--result_path', type=str, default='/data2/zhoujingyuan/MoC/outputs/')
+    parser.add_argument('--result_path', type=str, default='outputs/')
     args = parser.parse_args()
         
     result_path = args.result_path
